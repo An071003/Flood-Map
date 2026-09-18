@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flood Map HCMC — UI Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">≈</div>
+        <div>
+          <strong>Flood Map</strong>
+          <span>Hồ Chí Minh City</span>
+        </div>
+      </div>
+
+      <button class="search" aria-label="Tìm khu vực">
+        <span>⌕</span>
+        <span>Tìm quận, phường, đường...</span>
+        <kbd>⌘ K</kbd>
+      </button>
+
+      <div class="top-actions">
+        <div class="freshness">
+          <span class="live-dot"></span>
+          <div><strong>Dữ liệu mới</strong><small>14:32 • 2 phút trước</small></div>
+        </div>
+        <button class="icon-btn">◐</button>
+        <button class="icon-btn">⚙</button>
+      </div>
+    </header>
+
+    <section class="map-stage">
+      <div class="map-image"></div>
+      <div class="map-vignette"></div>
+      <svg class="flood-layer" viewBox="0 0 1440 828" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="waterLow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#53d8ff" stop-opacity=".44"/>
+            <stop offset="1" stop-color="#397bff" stop-opacity=".18"/>
+          </linearGradient>
+          <linearGradient id="waterHigh" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#34c7ff" stop-opacity=".72"/>
+            <stop offset="1" stop-color="#174dcb" stop-opacity=".48"/>
+          </linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <path class="water water-mid" d="M570 360 C650 300 785 310 880 355 C930 380 1008 392 1070 460 L1030 590 C922 606 850 598 760 560 C680 530 600 500 540 450 Z"/>
+        <path class="water water-high" d="M335 500 C440 430 560 445 650 510 C712 560 750 640 730 745 L315 745 C286 650 286 565 335 500 Z"/>
+        <path class="water water-low" d="M940 430 C1010 405 1100 420 1160 470 C1210 520 1212 592 1180 645 C1088 655 1000 632 948 575 C915 540 910 480 940 430 Z"/>
+      </svg>
+
+      <aside class="layer-rail" aria-label="Map layers">
+        <button class="rail-btn active" title="Ngập">≈</button>
+        <button class="rail-btn" title="Mưa">☂</button>
+        <button class="rail-btn" title="Thời tiết">☁</button>
+        <button class="rail-btn" title="Thủy triều">◒</button>
+        <div class="rail-sep"></div>
+        <button class="rail-btn">3D</button>
+        <button class="rail-btn">⌖</button>
+      </aside>
+
+      <div class="weather-marker m1">
+        <div class="weather-icon">🌧️</div>
+        <div><strong>29°</strong><small>Bình Thạnh</small></div>
+      </div>
+      <div class="weather-marker m2">
+        <div class="weather-icon">⛈️</div>
+        <div><strong>28°</strong><small>Thủ Đức</small></div>
+      </div>
+      <div class="weather-marker m3">
+        <div class="weather-icon">🌦️</div>
+        <div><strong>30°</strong><small>Quận 1</small></div>
+      </div>
+      <div class="weather-marker m4">
+        <div class="weather-icon">☁️</div>
+        <div><strong>31°</strong><small>Quận 3</small></div>
+      </div>
+      <div class="weather-marker m5">
+        <div class="weather-icon">🌧️</div>
+        <div><strong>29°</strong><small>Quận 7</small></div>
+      </div>
+
+      <div class="depth-pin depth-a"><strong>28 cm</strong><span>CẢNH BÁO</span></div>
+      <div class="depth-pin depth-b"><strong>12 cm</strong><span>THEO DÕI</span></div>
+      <div class="depth-pin depth-c"><strong>44 cm</strong><span>NGHIÊM TRỌNG</span></div>
+
+      <section class="city-card">
+        <div class="eyebrow"><span class="demo-dot"></span>MÔ PHỎNG</div>
+        <strong>TP.HCM lúc 14:32</strong>
+        <p><b>3 khu vực</b> có nguy cơ ngập đáng chú ý trong 3 giờ tới.</p>
+        <div class="mini-stats">
+          <span><small>Mưa TB</small><b>12 mm/h</b></span>
+          <span><small>Cao nhất</small><b>44 cm</b></span>
+          <span><small>Thủy triều</small><b>Đang lên</b></span>
+        </div>
+      </section>
+
+      <section class="inspector">
+        <div class="panel-topline">
+          <div>
+            <span class="eyebrow">BÌNH THẠNH · MÔ PHỎNG</span>
+            <h2>Nguyễn Hữu Cảnh</h2>
+          </div>
+          <button class="icon-btn small">×</button>
+        </div>
+
+        <div class="condition-row">
+          <span class="big-weather">🌧️</span>
+          <div><strong>Mưa vừa</strong><small>29°C · Gió 11 km/h</small></div>
+        </div>
+
+        <div class="hero-metric">
+          <div><span class="number">28</span><span class="unit">cm</span></div>
+          <span class="status warning">CẢNH BÁO</span>
+          <small>Mức ngập ước tính</small>
+        </div>
+
+        <div class="metric-grid">
+          <div><span>Mưa 1 giờ</span><strong>18 mm</strong></div>
+          <div><span>Mưa 3 giờ</span><strong>46 mm</strong></div>
+          <div><span>Rút nước</span><strong>70–110'</strong></div>
+          <div><span>Thủy triều</span><strong>+0.42 m</strong></div>
+        </div>
+
+        <div class="confidence">
+          <div><span>Độ tin cậy</span><strong>74%</strong></div>
+          <div class="bar"><span style="width:74%"></span></div>
+        </div>
+
+        <div class="reason-box">
+          <h3>Vì sao có nguy cơ?</h3>
+          <ul>
+            <li>Mưa tích lũy 3 giờ cao.</li>
+            <li>Khu vực có độ trũng tương đối.</li>
+            <li>Lịch sử ghi nhận ngập thường xuyên.</li>
+          </ul>
+        </div>
+
+        <div class="advice">
+          <span>!</span>
+          <p><strong>Khuyến nghị</strong> Hạn chế xe gầm thấp nếu mực nước tiếp tục tăng.</p>
+        </div>
+
+        <footer>Nguồn dữ liệu: demo · cập nhật 14:32</footer>
+      </section>
+
+      <section class="legend">
+        <span><i class="safe"></i>An toàn</span>
+        <span><i class="watch"></i>Theo dõi</span>
+        <span><i class="warning"></i>Cảnh báo</span>
+        <span><i class="severe"></i>Nghiêm trọng</span>
+      </section>
+
+      <section class="timeline">
+        <div class="timeline-head">
+          <div><strong>Dự báo ngập</strong><span>24 giờ tới</span></div>
+          <button class="play" id="playBtn">▶</button>
+        </div>
+        <div class="track-wrap">
+          <input id="timeRange" type="range" min="0" max="24" step="1" value="0" />
+          <div class="time-labels"><span>NOW</span><span>+3h</span><span>+6h</span><span>+12h</span><span>+24h</span></div>
+        </div>
+        <div class="forecast-chip"><span id="forecastTime">Bây giờ</span><strong id="forecastNote">Nguy cơ đang tăng</strong></div>
+      </section>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
