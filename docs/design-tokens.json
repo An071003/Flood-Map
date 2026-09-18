@@ -1,21 +1,41 @@
 {
   "color": {
-    "bgCanvas": "#07111F",
-    "bgPanel": "#0B1728",
-    "bgPanelElevated": "#102238",
-    "borderSubtle": "#213A52",
-    "textPrimary": "#F4F8FC",
-    "textSecondary": "#A9BED0",
-    "textMuted": "#6F8CA3",
-    "accentCyan": "#39C6FF",
-    "accentBlue": "#397BFF",
-    "safe": "#2FD39A",
-    "watch": "#F7C948",
+    "background": "#07111F",
+    "panel": "#0B1728",
+    "surface": "#102033",
+    "textPrimary": "#F3F7FB",
+    "textSecondary": "#AAB9CC",
+    "waterCyan": "#39C6FF",
+    "safe": "#24C38E",
+    "watch": "#3B82F6",
     "warning": "#FF9F43",
     "severe": "#FF5D73",
-    "rain": "#8B9DFF"
+    "borderSubtle": "rgba(255,255,255,0.08)"
   },
-  "radius": {"sm": 8, "md": 12, "lg": 16},
-  "spacing": [4,8,12,16,24,32,48],
-  "motionMs": {"micro": 160, "panel": 300, "data": 700, "camera": 1000}
+  "radius": {
+    "control": 12,
+    "panel": 16,
+    "pill": 999
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32
+  ],
+  "motionMs": {
+    "micro": 180,
+    "panel": 280,
+    "map": 450,
+    "water": 500
+  },
+  "layout": {
+    "leftRailPx": 60,
+    "inspectorMinPx": 320,
+    "inspectorMaxPx": 380,
+    "timelinePx": 84
+  }
 }

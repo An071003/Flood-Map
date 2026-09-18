@@ -1,24 +1,25 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { useAppStore } from '../stores/app-store';
-import { WeatherService } from '../services/weather/weather-service';
+import { RoadWeatherService } from '../services/road-weather-service';
 
 export const SearchModal: React.FC = () => {
   const isSearchOpen = useAppStore((s) => s.isSearchOpen);
   const setSearchOpen = useAppStore((s) => s.setSearchOpen);
   const searchQuery = useAppStore((s) => s.searchQuery);
   const setSearchQuery = useAppStore((s) => s.setSearchQuery);
-  const setSelectedAreaId = useAppStore((s) => s.setSelectedAreaId);
+  const setPersistedSearchQuery = useAppStore((s) => s.setPersistedSearchQuery);
+  const setSelectedRoadId = useAppStore((s) => s.setSelectedRoadId);
   const timelineHour = useAppStore((s) => s.timelineHour);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const weatherService = useMemo(() => WeatherService.getInstance(), []);
+  const weatherService = useMemo(() => RoadWeatherService.getInstance(), []);
   const snapshots = useMemo(
-    () => weatherService.getAreaSnapshots(timelineHour),
+    () => weatherService.getRoadSnapshots(timelineHour),
     [weatherService, timelineHour]
   );
 
-  // Global hotkey: Command/Ctrl + K and Escape
+  // Global hotkeys: Command/Ctrl + K and Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -37,20 +38,26 @@ export const SearchModal: React.FC = () => {
   useEffect(() => {
     if (isSearchOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setSearchQuery('');
     }
-  }, [isSearchOpen, setSearchQuery]);
+  }, [isSearchOpen]);
 
-  const filteredSnapshots = useMemo(() => {
+  // Road-first search matching
+  const filteredRoads = useMemo(() => {
     if (!searchQuery.trim()) return snapshots;
     const q = searchQuery.toLowerCase().trim();
     return snapshots.filter(
       (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.district.toLowerCase().includes(q)
+        s.road.properties.roadName.toLowerCase().includes(q) ||
+        s.road.properties.district.toLowerCase().includes(q)
     );
   }, [snapshots, searchQuery]);
+
+  const handleSelectRoad = (roadId: string, roadName: string) => {
+    setSelectedRoadId(roadId);
+    // Persist query so the searched term remains visible
+    setPersistedSearchQuery(searchQuery.trim() || roadName);
+    setSearchOpen(false);
+  };
 
   if (!isSearchOpen) return null;
 
@@ -60,7 +67,7 @@ export const SearchModal: React.FC = () => {
       onClick={() => setSearchOpen(false)}
       role="dialog"
       aria-modal="true"
-      aria-label="Tìm kiếm khu vực"
+      aria-label="Tìm kiếm tuyến đường"
     >
       <div className="search-modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="search-modal-header">
@@ -69,56 +76,73 @@ export const SearchModal: React.FC = () => {
             ref={inputRef}
             type="text"
             className="search-modal-input"
-            placeholder="Tìm theo tên đường, phường hoặc quận..."
+            placeholder="Tìm theo tên đường (Nguyễn Hữu Cảnh, Thảo Điền...)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && filteredRoads.length > 0) {
+                handleSelectRoad(
+                  filteredRoads[0].road.id,
+                  filteredRoads[0].road.properties.roadName
+                );
+              }
+            }}
           />
+          {searchQuery && (
+            <button
+              className="clear-search-btn"
+              onClick={() => setSearchQuery('')}
+              title="Xóa từ khóa"
+            >
+              ×
+            </button>
+          )}
           <kbd className="search-modal-esc" onClick={() => setSearchOpen(false)}>
             ESC
           </kbd>
         </div>
 
         <div className="search-modal-results">
-          {filteredSnapshots.length === 0 ? (
+          {filteredRoads.length === 0 ? (
             <div className="search-empty-state">
-              Không tìm thấy khu vực nào khớp với từ khóa "{searchQuery}"
+              Không tìm thấy tuyến đường nào khớp với từ khóa "{searchQuery}". Hãy thử tìm "Nguyễn Hữu Cảnh" hoặc "Thảo Điền".
             </div>
           ) : (
-            filteredSnapshots.map((item) => (
-              <div
-                key={item.areaId}
-                className="search-result-item"
-                onClick={() => {
-                  setSelectedAreaId(item.areaId);
-                  setSearchOpen(false);
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setSelectedAreaId(item.areaId);
-                    setSearchOpen(false);
-                  }
-                }}
-              >
-                <div className="result-main">
-                  <strong>{item.name}</strong>
-                  <span>{item.district}</span>
+            filteredRoads.map((item) => {
+              const road = item.road;
+              const p = road.properties;
+              return (
+                <div
+                  key={road.id}
+                  className="search-result-item"
+                  onClick={() => handleSelectRoad(road.id, p.roadName)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSelectRoad(road.id, p.roadName);
+                    }
+                  }}
+                >
+                  <div className="result-main">
+                    <strong>{p.roadName}</strong>
+                    <span>{p.district}</span>
+                  </div>
+                  <div className="result-meta">
+                    <span className={`result-badge ${p.riskLevel}`}>
+                      {p.riskLevel === 'severe'
+                        ? 'Nghiêm trọng'
+                        : p.riskLevel === 'warning'
+                        ? 'Cảnh báo'
+                        : p.riskLevel === 'watch'
+                        ? 'Theo dõi'
+                        : 'An toàn'}
+                    </span>
+                    <span className="result-depth">{p.estimatedDepthCm} cm</span>
+                  </div>
                 </div>
-                <div className="result-meta">
-                  <span className={`result-badge ${item.flood.severity}`}>
-                    {item.flood.severity === 'severe'
-                      ? 'Nghiêm trọng'
-                      : item.flood.severity === 'warning'
-                      ? 'Cảnh báo'
-                      : item.flood.severity === 'watch'
-                      ? 'Theo dõi'
-                      : 'An toàn'}
-                  </span>
-                  <span className="result-depth">{item.flood.estimatedDepthCm} cm</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

@@ -10,10 +10,11 @@ export const LayerRail: React.FC = () => {
   return (
     <aside className="layer-rail" aria-label="Bộ điều khiển lớp bản đồ">
       <button
-        className={`rail-btn ${activeLayers.flood ? 'active' : ''}`}
-        onClick={() => toggleLayer('flood')}
-        title="Lớp nước ngập 3D"
-        aria-pressed={activeLayers.flood}
+        className={`rail-btn ${activeLayers.roadFlood ? 'active' : ''}`}
+        onClick={() => toggleLayer('roadFlood')}
+        title="Bật/tắt dải nước ngập 3D trên tuyến đường"
+        aria-pressed={activeLayers.roadFlood}
+        aria-label="Lớp ngập đường 3D"
       >
         ≈
       </button>
@@ -21,17 +22,19 @@ export const LayerRail: React.FC = () => {
       <button
         className={`rail-btn ${activeLayers.rain ? 'active' : ''}`}
         onClick={() => toggleLayer('rain')}
-        title="Lớp mưa hạt và mây dông"
+        title="Bật/tắt hiệu ứng hạt mưa rơi"
         aria-pressed={activeLayers.rain}
+        aria-label="Lớp mưa rơi"
       >
         ☂
       </button>
 
       <button
-        className={`rail-btn ${activeLayers.weather ? 'active' : ''}`}
-        onClick={() => toggleLayer('weather')}
-        title="Nhãn thời tiết khu vực"
-        aria-pressed={activeLayers.weather}
+        className={`rail-btn ${activeLayers.weatherLabels ? 'active' : ''}`}
+        onClick={() => toggleLayer('weatherLabels')}
+        title="Bật/tắt ghim nhãn độ sâu trên đường"
+        aria-pressed={activeLayers.weatherLabels}
+        aria-label="Ghim độ sâu đường"
       >
         ☁
       </button>
@@ -39,8 +42,9 @@ export const LayerRail: React.FC = () => {
       <button
         className={`rail-btn ${activeLayers.tide ? 'active' : ''}`}
         onClick={() => toggleLayer('tide')}
-        title="Áp lực triều cường"
+        title="Bật/tắt cảnh báo triều cường sông Sài Gòn"
         aria-pressed={activeLayers.tide}
+        aria-label="Lớp triều cường"
       >
         ◒
       </button>
@@ -50,8 +54,9 @@ export const LayerRail: React.FC = () => {
       <button
         className={`rail-btn ${activeLayers.is3D ? 'active' : ''}`}
         onClick={() => set3D(!activeLayers.is3D)}
-        title="Góc nhìn 3D nghiêng"
+        title="Chuyển đổi góc nhìn nghiêng 3D / 2D phẳng"
         aria-pressed={activeLayers.is3D}
+        aria-label="Chế độ 3D"
       >
         3D
       </button>
@@ -59,7 +64,7 @@ export const LayerRail: React.FC = () => {
       <button
         className="rail-btn"
         onClick={triggerResetCamera}
-        title="Định vị về trung tâm TP.HCM"
+        title="Định vị về trung tâm toàn cảnh TP.HCM"
         aria-label="Về góc nhìn toàn cảnh thành phố"
       >
         ⌖

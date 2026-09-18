@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RoadSegmentFeature",
+  "type": "object",
+  "required": [
+    "type",
+    "properties",
+    "geometry"
+  ],
+  "properties": {
+    "type": {
+      "const": "Feature"
+    },
+    "properties": {
+      "type": "object",
+      "required": [
+        "id",
+        "roadId",
+        "roadName",
+        "district",
+        "estimatedDepthCm",
+        "riskLevel",
+        "confidenceBand",
+        "isSimulated",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "roadId": {
+          "type": "string"
+        },
+        "roadName": {
+          "type": "string"
+        },
+        "district": {
+          "type": "string"
+        },
+        "estimatedDepthCm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "riskLevel": {
+          "enum": [
+            "safe",
+            "watch",
+            "warning",
+            "severe"
+          ]
+        },
+        "rain1hMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rain3hMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "tideImpactM": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "drainageMinutes": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "confidenceBand": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "confidenceScore": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "isSimulated": {
+          "type": "boolean"
+        },
+        "reasonTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "geometry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "properties": {
+            "type": {
+              "const": "LineString"
+            },
+            "coordinates": {
+              "type": "array"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "properties": {
+            "type": {
+              "const": "MultiLineString"
+            },
+            "coordinates": {
+              "type": "array"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

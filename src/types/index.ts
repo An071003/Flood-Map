@@ -1,8 +1,100 @@
+export type RiskLevel = 'safe' | 'watch' | 'warning' | 'severe';
+export type FloodSeverity = RiskLevel;
+export type ConfidenceBand = 'low' | 'medium' | 'high';
 export type DataKind = 'observed' | 'forecast' | 'estimated' | 'demo';
-
 export type WeatherCondition = 'clear' | 'cloudy' | 'rain' | 'heavy_rain' | 'storm';
 
-export type FloodSeverity = 'safe' | 'watch' | 'warning' | 'severe';
+export interface RoadSegmentProperties {
+  id: string;
+  roadId: string;
+  roadName: string;
+  district: string;
+  anchorPoint: [number, number]; // [lng, lat] for pin/popup
+  labelPoint: [number, number]; // [lng, lat] for road text
+  estimatedDepthCm: number;
+  riskLevel: RiskLevel;
+  rain1hMm: number;
+  rain3hMm: number;
+  tideImpactM: number;
+  drainageMinutes: number;
+  confidenceBand: ConfidenceBand;
+  confidenceScore: number; // 0..1
+  isSimulated: boolean;
+  reasonTags: string[];
+  reasons: string[];
+  advice: string;
+  updatedAt: string;
+  lowElevationScore: number;
+  poorDrainageScore: number;
+  historicalFloodScore: number;
+}
+
+export interface RoadSegment {
+  id: string;
+  properties: RoadSegmentProperties;
+  geometry: {
+    type: 'LineString';
+    coordinates: [number, number][]; // Array of [lng, lat]
+  };
+}
+
+export interface RoadFloodSnapshot {
+  road: RoadSegment;
+  weather: {
+    condition: WeatherCondition;
+    temperatureC: number;
+    rainRateMmH: number;
+    windSpeedKmh: number;
+    description: string;
+  };
+}
+
+export interface CitySummary {
+  timestamp: string;
+  totalMonitoredRoads?: number;
+  totalMonitored?: number;
+  warningRoadsCount?: number;
+  warningCount?: number;
+  avgRainMmH: number;
+  maxDepthCm: number;
+  tideState: 'Đang lên' | 'Đỉnh triều' | 'Đang rút' | 'Bình thường';
+  tideLevelM: number;
+  freshnessMinutes: number;
+  isSimulated?: boolean;
+}
+
+export interface TimelineStep {
+  hour: number;
+  label: string;
+  shortLabel: string;
+  note: string;
+  trend?: 'rising' | 'peak' | 'receding' | 'stable';
+}
+
+export interface ActiveLayers {
+  roadFlood: boolean;
+  rain: boolean;
+  weatherLabels: boolean;
+  tide: boolean;
+  is3D: boolean;
+  hcmcBoundary: boolean;
+  // Legacy aliases
+  flood?: boolean;
+  weather?: boolean;
+}
+
+// Backward compatibility types for legacy flood engine if needed
+export interface AreaFlood {
+  severity: FloodSeverity;
+  score: number;
+  estimatedDepthCm: number;
+  renderHeight: number;
+  drainMinMinutes: number;
+  drainMaxMinutes: number;
+  confidence: number;
+  reasons: string[];
+  advice: string;
+}
 
 export interface AreaWeather {
   condition: WeatherCondition;
@@ -15,27 +107,15 @@ export interface AreaWeather {
   description: string;
 }
 
-export interface AreaFlood {
-  severity: FloodSeverity;
-  score: number; // 0..1
-  estimatedDepthCm: number;
-  renderHeight: number; // clamped visual 3D extrusion height
-  drainMinMinutes: number;
-  drainMaxMinutes: number;
-  confidence: number; // 0..1
-  reasons: string[];
-  advice: string;
-}
-
 export interface FloodAreaStaticInfo {
   id: string;
   name: string;
   district: string;
-  coordinates: [number, number]; // [lng, lat] centroid
-  polygon: [number, number][]; // [lng, lat] coordinates
-  lowElevationScore: number; // 0..1 (1 = lowest elevation)
-  poorDrainageScore: number; // 0..1 (1 = severely bottlenecked drainage)
-  historicalFloodScore: number; // 0..1 (1 = chronic flooding history)
+  coordinates: [number, number];
+  polygon: [number, number][];
+  lowElevationScore: number;
+  poorDrainageScore: number;
+  historicalFloodScore: number;
 }
 
 export interface AreaSnapshot {
@@ -49,30 +129,4 @@ export interface AreaSnapshot {
   freshnessMinutes: number;
   coordinates: [number, number];
   polygon: [number, number][];
-}
-
-export interface CitySummary {
-  timestamp: string;
-  totalMonitored: number;
-  warningCount: number;
-  avgRainMmH: number;
-  maxDepthCm: number;
-  tideState: 'Đang lên' | 'Đỉnh triều' | 'Đang rút' | 'Bình thường';
-  tideLevelM: number;
-  freshnessMinutes: number;
-}
-
-export interface TimelineStep {
-  hour: number;
-  label: string;
-  shortLabel: string;
-  note: string;
-}
-
-export interface ActiveLayers {
-  flood: boolean;
-  rain: boolean;
-  weather: boolean;
-  tide: boolean;
-  is3D: boolean;
 }

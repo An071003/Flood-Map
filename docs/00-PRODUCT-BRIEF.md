@@ -1,35 +1,42 @@
 # 00 — Product Brief
 
-## Tên sản phẩm
-**Flood Map HCMC**
+## Product name
+Flood Map HCMC V3
 
-## Problem
-Người dân cần biết không chỉ “hôm nay có mưa hay không” mà còn:
-- khu vực nào có nguy cơ ngập;
-- ngập khoảng bao nhiêu cm;
-- có thể kéo dài bao lâu;
-- dữ liệu đó đáng tin ở mức nào;
-- nên làm gì trước khi di chuyển.
+## Product vision
+Một bản đồ theo dõi nguy cơ ngập **theo đoạn đường lớn** tại TP.HCM, giúp người dùng hiểu nhanh đường nào rủi ro hơn và xu hướng ngập trong 24 giờ tới.
 
-## Core job-to-be-done
-> “Trước khi ra đường, tôi muốn nhìn nhanh trên bản đồ TP.HCM để biết nơi nào đang mưa/ngập hoặc có nguy cơ ngập trong vài giờ tới.”
+## Core user questions
+- Đường tôi sắp đi có nguy cơ ngập không?
+- Đoạn nào đang xấu nhất?
+- Mức ngập ước tính bao nhiêu?
+- Bao lâu có thể rút?
+- Rủi ro đang tăng hay giảm?
+- Có trục đường lớn nào ít rủi ro hơn?
 
-## Primary users
-- Người đi làm/đi học bằng xe máy, ô tô.
-- Điều phối vận hành/giao hàng.
-- Người theo dõi tình hình mưa/ngập theo khu vực.
+## MVP scope
+- TP.HCM
+- Major roads
+- Road segment selection
+- 24h timeline
+- Estimated flood depth
+- Road inspector
+- 3D visualization
+- Weather/rain/tide context
+- Search
 
-## MVP
-1. Map 3D TP.HCM.
-2. Weather per area.
-3. Rain accumulation 1h/3h/6h.
-4. Flood risk + depth estimate + drain duration.
-5. Timeline NOW → +24h.
-6. Selected-area inspector.
-7. Source/freshness/confidence.
-8. Responsive mobile.
+## Non-goals của V3
+- Lane-level routing
+- Full-road coverage toàn bộ hẻm/ngõ
+- Navigation turn-by-turn
+- Claiming sensor-grade flood measurements
+- ML prediction nếu chưa có dataset calibration phù hợp
+- Crowdsourcing/report moderation
 
-## Không làm trong MVP
-- Không tuyên bố là hệ thống cảnh báo thiên tai chính thức.
-- Không route navigation tự động qua đường ngập nếu chưa có road-level data đáng tin cậy.
-- Không dùng AI LLM để “đoán” depth nếu thiếu input; heuristic phải deterministic và kiểm thử được.
+## Success criteria
+Một người mới mở site có thể trong <10 giây:
+1. hiểu đây là bản đồ nguy cơ ngập theo đường,
+2. search/chọn một đường,
+3. thấy depth/severity,
+4. hiểu đây là ước tính hay quan trắc,
+5. xem xu hướng 24h.

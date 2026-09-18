@@ -1,0 +1,45 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "nguyen-huu-canh-01",
+        "roadId": "nguyen-huu-canh",
+        "roadName": "Nguyễn Hữu Cảnh",
+        "district": "Bình Thạnh",
+        "estimatedDepthCm": 25,
+        "riskLevel": "warning",
+        "rain1hMm": 18,
+        "rain3hMm": 46,
+        "tideImpactM": 0.42,
+        "drainageMinutes": 120,
+        "confidenceBand": "medium",
+        "isSimulated": true,
+        "reasonTags": [
+          "heavy-rain-3h",
+          "low-elevation",
+          "slow-drainage"
+        ],
+        "updatedAt": "2026-09-18T14:32:00+07:00"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            106.7175,
+            10.79
+          ],
+          [
+            106.72,
+            10.792
+          ],
+          [
+            106.723,
+            10.794
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -2,17 +2,18 @@ import { create } from 'zustand';
 import { ActiveLayers } from '../types';
 
 interface AppState {
-  selectedAreaId: string | null;
+  selectedRoadId: string | null;
   timelineHour: number;
   isPlaying: boolean;
   activeLayers: ActiveLayers;
   isSearchOpen: boolean;
   searchQuery: string;
+  persistedSearchQuery: string;
   isMobileInspectorExpanded: boolean;
   cameraResetNonce: number;
 
   // Actions
-  setSelectedAreaId: (id: string | null) => void;
+  setSelectedRoadId: (id: string | null) => void;
   setTimelineHour: (hour: number) => void;
   togglePlay: () => void;
   setPlaying: (playing: boolean) => void;
@@ -20,27 +21,30 @@ interface AppState {
   set3D: (is3D: boolean) => void;
   setSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
+  setPersistedSearchQuery: (query: string) => void;
   setMobileInspectorExpanded: (expanded: boolean) => void;
   triggerResetCamera: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  selectedAreaId: 'binh-thanh-nhc', // Initial selected area matching Prototype State C
+  selectedRoadId: 'road-nguyen-huu-canh', // Initial road matching specification
   timelineHour: 0,
   isPlaying: false,
   activeLayers: {
-    flood: true,
+    roadFlood: true,
     rain: true,
-    weather: true,
+    weatherLabels: true,
     tide: true,
     is3D: true,
+    hcmcBoundary: true,
   },
   isSearchOpen: false,
   searchQuery: '',
+  persistedSearchQuery: '',
   isMobileInspectorExpanded: false,
   cameraResetNonce: 0,
 
-  setSelectedAreaId: (id) => set({ selectedAreaId: id }),
+  setSelectedRoadId: (id) => set({ selectedRoadId: id }),
   setTimelineHour: (hour) => set({ timelineHour: Math.min(Math.max(hour, 0), 24) }),
   togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
   setPlaying: (playing) => set({ isPlaying: playing }),
@@ -60,6 +64,7 @@ export const useAppStore = create<AppState>((set) => ({
     })),
   setSearchOpen: (open) => set({ isSearchOpen: open }),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  setPersistedSearchQuery: (query) => set({ persistedSearchQuery: query }),
   setMobileInspectorExpanded: (expanded) => set({ isMobileInspectorExpanded: expanded }),
   triggerResetCamera: () => set((state) => ({ cameraResetNonce: state.cameraResetNonce + 1 })),
 }));
