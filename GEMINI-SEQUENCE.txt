@@ -1,0 +1,14 @@
+STEP 1:
+Read AGENT.md from V3 + AGENT-V3.1.md.
+
+STEP 2:
+Run REVIEW-V3.1-PROMPT.md.
+Do not code.
+
+STEP 3:
+Run OPTIMIZE-PROMPT.md phase by phase.
+
+STEP 4:
+Run RELEASE-CHECK-PROMPT.md.
+
+Do not report V3.1 complete while Critical/High checklist items remain.

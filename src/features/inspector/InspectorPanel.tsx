@@ -22,18 +22,16 @@ export const InspectorPanel: React.FC = () => {
   const selectedRoadId = useAppStore((s) => s.selectedRoadId);
   const setSelectedRoadId = useAppStore((s) => s.setSelectedRoadId);
   const timelineHour = useAppStore((s) => s.timelineHour);
-  const isMobileExpanded = useAppStore((s) => s.isMobileInspectorExpanded);
-  const setMobileExpanded = useAppStore((s) => s.setMobileInspectorExpanded);
-
+  type SheetState = 'collapsed' | 'half' | 'expanded';
+  const [sheetState, setSheetState] = useState<SheetState>('half');
   const [showDetails, setShowDetails] = useState(false);
-  const touchStartYRef = useRef(0);
+  const touchStartYRef = useRef<number>(0);
 
   const weatherService = useMemo(() => RoadWeatherService.getInstance(), []);
   const snapshots = useMemo(
     () => weatherService.getRoadSnapshots(timelineHour),
     [weatherService, timelineHour]
   );
-
   const currentItem = useMemo(
     () => snapshots.find((s) => s.road.id === selectedRoadId),
     [snapshots, selectedRoadId]
@@ -46,7 +44,16 @@ export const InspectorPanel: React.FC = () => {
   const sev = severityConfig[p.riskLevel] || severityConfig.safe;
   const conf = confidenceBandText[p.confidenceBand] || confidenceBandText.medium;
 
-  // Touch gesture handlers for mobile bottom sheet
+  // Cycle sheet state on tap
+  const cycleSheetState = () => {
+    setSheetState((prev) => {
+      if (prev === 'collapsed') return 'half';
+      if (prev === 'half') return 'expanded';
+      return 'collapsed';
+    });
+  };
+
+  // Touch gesture handlers for mobile bottom sheet snap points
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartYRef.current = e.touches[0].clientY;
   };
@@ -54,18 +61,18 @@ export const InspectorPanel: React.FC = () => {
   const handleTouchEnd = (e: React.TouchEvent) => {
     const touchEndY = e.changedTouches[0].clientY;
     const diff = touchEndY - touchStartYRef.current;
-    if (diff < -40) {
-      // Swiped UP -> expand
-      setMobileExpanded(true);
-    } else if (diff > 40) {
-      // Swiped DOWN -> collapse
-      setMobileExpanded(false);
+    if (diff < -35) {
+      // Swiped UP -> expand higher
+      setSheetState((prev) => (prev === 'collapsed' ? 'half' : 'expanded'));
+    } else if (diff > 35) {
+      // Swiped DOWN -> collapse lower
+      setSheetState((prev) => (prev === 'expanded' ? 'half' : 'collapsed'));
     }
   };
 
   return (
     <section
-      className={`inspector ${isMobileExpanded ? 'mobile-expanded' : ''}`}
+      className={`inspector sheet-${sheetState}`}
       aria-labelledby="inspector-heading"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -73,8 +80,10 @@ export const InspectorPanel: React.FC = () => {
       {/* Mobile Drawer Grab Handle */}
       <div
         className="mobile-grab-bar"
-        onClick={() => setMobileExpanded(!isMobileExpanded)}
-        aria-label="Kéo để mở rộng hoặc thu gọn"
+        onClick={cycleSheetState}
+        role="button"
+        tabIndex={0}
+        aria-label={`Trạng thái bảng điều khiển di động: ${sheetState}. Bấm hoặc vuốt để đổi nấc`}
       >
         <span className="grab-pill"></span>
       </div>
@@ -105,28 +114,58 @@ export const InspectorPanel: React.FC = () => {
           <span className="unit">cm</span>
         </div>
         <span className={`status ${sev.className}`}>{sev.label}</span>
-        <small>Mức ngập ước tính tại đoạn trũng</small>
+        <small>
+          Mực nước ngập ước tính tại đoạn trũng nhất · <span className="text-tag">MÔ PHỎNG</span>
+        </small>
       </div>
 
-      {/* Key Decision Metrics Grid */}
+      {/* Key Decision Metrics Grid with Data-Class Semantics */}
       <div className="metric-grid decision-grid">
-        <div>
-          <span>Mưa tích lũy 3h</span>
+        <div title="Mưa tích lũy dự báo 3 giờ gần nhất từ mô hình thời tiết">
+          <div className="metric-label-row">
+            <span>Mưa tích lũy 3h</span>
+            <span className="data-class-tag forecast">DỰ BÁO</span>
+          </div>
           <strong>{p.rain3hMm} mm</strong>
         </div>
-        <div>
-          <span>Rút nước dự kiến</span>
+        <div title="Thời gian tiêu thoát nước ước tính theo khẩu độ cống và triều">
+          <div className="metric-label-row">
+            <span>Rút nước dự kiến</span>
+            <span className="data-class-tag estimated">ƯỚC TÍNH</span>
+          </div>
           <strong>~{p.drainageMinutes} phút</strong>
         </div>
-        <div>
-          <span>Triều cường</span>
+        <div title="Mực nước triều dâng dự kiến tại trạm hạ lưu phụ cận">
+          <div className="metric-label-row">
+            <span>Triều cường</span>
+            <span className="data-class-tag forecast">DỰ BÁO</span>
+          </div>
           <strong>+{p.tideImpactM} m</strong>
         </div>
-        <div>
-          <span>Đánh giá tin cậy</span>
-          <strong style={{ color: conf.color, fontSize: '11px' }}>
-            {p.confidenceBand === 'high' ? 'Cao (85%)' : p.confidenceBand === 'medium' ? 'Vừa (75%)' : 'Thấp'}
+        <div title="Mức độ đầy đủ của dữ liệu đầu vào (mưa, triều, cống, địa hình)">
+          <div className="metric-label-row">
+            <span>Đầy đủ dữ liệu</span>
+            <span className="data-class-tag static">ĐẦU VÀO</span>
+          </div>
+          <strong style={{ color: conf.color, fontSize: '12px' }}>
+            {Math.round(p.confidenceScore * 100)}% ({p.confidenceBand === 'high' ? 'Cao' : p.confidenceBand === 'medium' ? 'Vừa' : 'Thấp'})
           </strong>
+        </div>
+      </div>
+
+      {/* Vehicle Passability Advisory Grid */}
+      <div className="vehicle-advisory-box">
+        <h4>Khả năng lưu thông theo phương tiện:</h4>
+        <div className="vehicle-pills">
+          <span className={`veh-pill ${p.estimatedDepthCm < 20 ? 'pass' : 'fail'}`}>
+            🏍️ Xe máy: {p.estimatedDepthCm < 20 ? 'Qua được' : 'Nguy hiểm / Chết máy'}
+          </span>
+          <span className={`veh-pill ${p.estimatedDepthCm < 25 ? 'pass' : 'fail'}`}>
+            🚗 Sedan (gầm thấp): {p.estimatedDepthCm < 25 ? 'Cẩn trọng' : 'Không nên qua'}
+          </span>
+          <span className={`veh-pill ${p.estimatedDepthCm < 40 ? 'pass' : 'caution'}`}>
+            🚙 SUV / Xe tải: {p.estimatedDepthCm < 40 ? 'Lưu thông được' : 'Hạn chế qua'}
+          </span>
         </div>
       </div>
 
@@ -134,7 +173,7 @@ export const InspectorPanel: React.FC = () => {
       <div className="reason-box">
         <h3>Vì sao có nguy cơ ngập?</h3>
         <ul>
-          {p.reasons.map((reason, idx) => (
+          {p.reasons.map((reason: string, idx: number) => (
             <li key={idx}>{reason}</li>
           ))}
         </ul>
@@ -154,7 +193,7 @@ export const InspectorPanel: React.FC = () => {
         onClick={() => setShowDetails(!showDetails)}
         aria-expanded={showDetails}
       >
-        <span>Chi tiết dữ liệu kỹ thuật</span>
+        <span>Chi tiết dữ liệu kỹ thuật & xuất xứ</span>
         <span>{showDetails ? '▲' : '▼'}</span>
       </button>
 
@@ -162,7 +201,7 @@ export const InspectorPanel: React.FC = () => {
         <div className="expanded-technical-details">
           <div className="tech-row">
             <span>Cường độ mưa 1h:</span>
-            <b>{p.rain1hMm} mm/h</b>
+            <b>{p.rain1hMm} mm/h <small>(Dự báo)</small></b>
           </div>
           <div className="tech-row">
             <span>Tọa độ neo (Anchor):</span>
@@ -170,15 +209,18 @@ export const InspectorPanel: React.FC = () => {
           </div>
           <div className="tech-row">
             <span>Điểm trũng địa hình:</span>
-            <b>{Math.round(p.lowElevationScore * 100)}% trũng</b>
+            <b>{Math.round(p.lowElevationScore * 100)}% trũng <small>(Địa hình tĩnh)</small></b>
           </div>
           <div className="tech-row">
-            <span>Cống thoát nước:</span>
-            <b>{Math.round(p.poorDrainageScore * 100)}% tải</b>
+            <span>Tải cống thoát nước:</span>
+            <b>{Math.round(p.poorDrainageScore * 100)}% tải <small>(Hạ tầng tĩnh)</small></b>
           </div>
-          <p className="confidence-doc">
-            {conf.label}. Độ tin cậy tính toán dựa trên mức độ tích lũy mưa, triều cường cục bộ và đặc tính thoát nước của đoạn đường.
-          </p>
+          <div className="confidence-doc">
+            <strong>Về chỉ số độ đầy đủ dữ liệu ({Math.round(p.confidenceScore * 100)}%):</strong>
+            <p>
+              Chỉ số phản ánh chất lượng và mức độ sẵn sàng của các biến số đầu vào (lượng mưa vệ tinh/radar, mực nước trạm thủy văn Phú An/Nhà Bè, độ dốc tự nhiên, khẩu độ cống). Đây là <em>mô hình ước tính mô phỏng</em>, chưa qua hiệu chuẩn cảm biến đo ngập thời gian thực (ground-truth).
+            </p>
+          </div>
         </div>
       )}
 

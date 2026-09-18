@@ -2,7 +2,18 @@ export type RiskLevel = 'safe' | 'watch' | 'warning' | 'severe';
 export type FloodSeverity = RiskLevel;
 export type ConfidenceBand = 'low' | 'medium' | 'high';
 export type DataKind = 'observed' | 'forecast' | 'estimated' | 'demo';
+export type DataClass = 'observed' | 'forecast' | 'estimated' | 'static' | 'mock';
+export type DataState = 'loading' | 'fresh' | 'updating' | 'stale' | 'error';
 export type WeatherCondition = 'clear' | 'cloudy' | 'rain' | 'heavy_rain' | 'storm';
+
+export interface MetricValue<T> {
+  value: T;
+  dataClass: DataClass;
+  sourceId: string;
+  observedAt?: string;
+  forecastFor?: string;
+  updatedAt: string;
+}
 
 export interface RoadSegmentProperties {
   id: string;

@@ -6,9 +6,11 @@ export const TopBar: React.FC = () => {
   const set3D = useAppStore((s) => s.set3D);
   const setSearchOpen = useAppStore((s) => s.setSearchOpen);
   const persistedSearchQuery = useAppStore((s) => s.persistedSearchQuery);
+  const dataState = useAppStore((s) => s.dataState);
+  const lastUpdatedTimestamp = useAppStore((s) => s.lastUpdatedTimestamp);
 
   return (
-    <header className="topbar">
+    <header className="topbar" role="banner">
       <div className="brand">
         <div className="brand-mark" aria-hidden="true">≈</div>
         <div>
@@ -32,11 +34,17 @@ export const TopBar: React.FC = () => {
       </button>
 
       <div className="top-actions">
-        <div className="freshness">
-          <span className="live-dot" aria-hidden="true"></span>
+        <div className={`freshness ${dataState}`} title="Trạng thái độ tin cậy nguồn dữ liệu đầu vào">
+          <span className={`live-dot ${dataState}`} aria-hidden="true"></span>
           <div>
             <strong>Mô hình ước tính</strong>
-            <small>14:32 • MÔ PHỎNG</small>
+            <small>
+              {dataState === 'error'
+                ? 'Lỗi mạng · Chế độ offline'
+                : dataState === 'stale'
+                ? `Dữ liệu cũ • ${lastUpdatedTimestamp}`
+                : `${lastUpdatedTimestamp} • MÔ PHỎNG`}
+            </small>
           </div>
         </div>
 

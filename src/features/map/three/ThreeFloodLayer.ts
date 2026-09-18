@@ -93,10 +93,8 @@ export class ThreeFloodLayer implements CustomLayerInterface {
       // Ribbon width: ~22 meters wide in Mercator units
       const halfWidth = 11 * meterUnits;
 
-      // 3D elevation height from visual spec
-      const depthCm = road.properties.estimatedDepthCm;
-      const visualHeight = calculate3DHeight(depthCm);
-      const elevationMeters = visualHeight * 260 * meterUnits;
+      // Base unit elevation height (docs/21-TRUE-3D-DEPTH-ENCODING.md)
+      const baseElevation = 260 * meterUnits;
 
       // Build ribbon vertices and faces
       const topVertices: number[] = [];
@@ -128,15 +126,15 @@ export class ThreeFloodLayer implements CustomLayerInterface {
         const rightX = curr.x - origin.x - normX * halfWidth;
         const rightY = curr.y - origin.y - normY * halfWidth;
 
-        // Top water surface (elevated)
-        topVertices.push(leftX, leftY, elevationMeters);
-        topVertices.push(rightX, rightY, elevationMeters);
+        // Top water surface (elevated to base unit height)
+        topVertices.push(leftX, leftY, baseElevation);
+        topVertices.push(rightX, rightY, baseElevation);
 
-        // Side walls (from ground to elevated water surface)
+        // Side walls (from ground 0 to base water surface)
         wallVertices.push(leftX, leftY, 0.00001);
-        wallVertices.push(leftX, leftY, elevationMeters);
+        wallVertices.push(leftX, leftY, baseElevation);
         wallVertices.push(rightX, rightY, 0.00001);
-        wallVertices.push(rightX, rightY, elevationMeters);
+        wallVertices.push(rightX, rightY, baseElevation);
 
         if (i < mercatorPts.length - 1) {
           const base = i * 2;
@@ -188,6 +186,10 @@ export class ThreeFloodLayer implements CustomLayerInterface {
       const topMesh = new THREE.Mesh(topGeo, topMaterial);
       const wallMesh = new THREE.Mesh(wallGeo, wallMaterial);
 
+      const initialHeight = calculate3DHeight(road.properties.estimatedDepthCm);
+      topMesh.scale.set(1, 1, initialHeight);
+      wallMesh.scale.set(1, 1, initialHeight);
+
       topMesh.position.set(origin.x, origin.y, 0);
       wallMesh.position.set(origin.x, origin.y, 0);
 
@@ -199,9 +201,9 @@ export class ThreeFloodLayer implements CustomLayerInterface {
         wallMesh,
         topMaterial,
         wallMaterial,
-        baseThickness: elevationMeters,
-        currentScale: 1.0,
-        targetScale: 1.0,
+        baseThickness: baseElevation,
+        currentScale: initialHeight,
+        targetScale: initialHeight,
         riskLevel: road.properties.riskLevel,
       });
     });
@@ -269,9 +271,9 @@ export class ThreeFloodLayer implements CustomLayerInterface {
         entry.topMaterial.opacity = colors.opacity;
         entry.wallMaterial.color.setHex(colors.wallColor);
 
-        // Visual target height
+        // Visual target height strictly mapped via calculate3DHeight (docs/21-TRUE-3D-DEPTH-ENCODING.md)
         const depth = item.road.properties.estimatedDepthCm;
-        const targetScale = Math.max(0.2, (depth + 4) / 26);
+        const targetScale = calculate3DHeight(depth);
         entry.targetScale = targetScale;
       }
     });
@@ -293,11 +295,12 @@ export class ThreeFloodLayer implements CustomLayerInterface {
     const delta = Math.min(this.clock.getDelta(), 0.05);
     this.elapsedTime += delta;
 
-    // Smoothly scale road ribbons
+    // Smoothly scale road ribbons with frame-rate independent damp
+    const dampRate = Math.min(1.0, delta * 14);
     this.roadRibbons.forEach((entry) => {
-      entry.currentScale += (entry.targetScale - entry.currentScale) * 0.12;
-      entry.ribbonMesh.scale.set(1, 1, Math.max(0.1, entry.currentScale));
-      entry.wallMesh.scale.set(1, 1, Math.max(0.1, entry.currentScale));
+      entry.currentScale += (entry.targetScale - entry.currentScale) * dampRate;
+      entry.ribbonMesh.scale.set(1, 1, Math.max(0.06, entry.currentScale));
+      entry.wallMesh.scale.set(1, 1, Math.max(0.06, entry.currentScale));
     });
 
     // Animate rain falling

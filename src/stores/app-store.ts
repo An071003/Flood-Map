@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ActiveLayers } from '../types';
+import { ActiveLayers, DataState } from '../types';
 
 interface AppState {
   selectedRoadId: string | null;
@@ -11,6 +11,8 @@ interface AppState {
   persistedSearchQuery: string;
   isMobileInspectorExpanded: boolean;
   cameraResetNonce: number;
+  dataState: DataState;
+  lastUpdatedTimestamp: string;
 
   // Actions
   setSelectedRoadId: (id: string | null) => void;
@@ -24,6 +26,7 @@ interface AppState {
   setPersistedSearchQuery: (query: string) => void;
   setMobileInspectorExpanded: (expanded: boolean) => void;
   triggerResetCamera: () => void;
+  setDataState: (state: DataState) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -43,6 +46,9 @@ export const useAppStore = create<AppState>((set) => ({
   persistedSearchQuery: '',
   isMobileInspectorExpanded: false,
   cameraResetNonce: 0,
+  dataState: 'fresh',
+  lastUpdatedTimestamp: '14:32 (2 phút trước)',
+  setDataState: (dataState) => set({ dataState }),
 
   setSelectedRoadId: (id) => set({ selectedRoadId: id }),
   setTimelineHour: (hour) => set({ timelineHour: Math.min(Math.max(hour, 0), 24) }),

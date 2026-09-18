@@ -41,10 +41,12 @@ describe('Flood Map HCMC App Component — Road-First V3', () => {
     render(<App />);
 
     expect(screen.getByText('Nguyễn Hữu Cảnh')).toBeInTheDocument();
-    expect(screen.getByText('Mức ngập ước tính tại đoạn trũng')).toBeInTheDocument();
+    expect(screen.getByText(/ước tính tại đoạn trũng/i)).toBeInTheDocument();
     expect(screen.getByText('CẢNH BÁO')).toBeInTheDocument();
     expect(screen.getByText('Vì sao có nguy cơ ngập?')).toBeInTheDocument();
     expect(screen.getByText('Mưa tích lũy 3h')).toBeInTheDocument();
+    expect(screen.getByText(/Khả năng lưu thông theo phương tiện/i)).toBeInTheDocument();
+    expect(screen.getByText('Đầy đủ dữ liệu')).toBeInTheDocument();
   });
 
   it('renders timeline with controls and quick-jump step pills', () => {

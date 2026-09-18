@@ -6,33 +6,13 @@ import { RoadWeatherService } from '../../services/road-weather-service';
 import { ThreeFloodLayer } from './three/ThreeFloodLayer';
 import {
   HCMC_BOUNDARY_LINE_GEOJSON,
+  HCMC_BOUNDARY_POLYGON_GEOJSON,
   HCMC_OUTSIDE_MASK_GEOJSON,
 } from '../../services/geodata/hcmc-boundary';
 
-const CARTO_DARK_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'carto-dark': {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-      ],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors, © CARTO',
-    },
-  },
-  layers: [
-    {
-      id: 'carto-dark-layer',
-      type: 'raster',
-      source: 'carto-dark',
-      minzoom: 0,
-      maxzoom: 20,
-    },
-  ],
-};
+// Open-source dark vector basemap with zero API keys and zero watermarks
+// Complies with docs/19-BASEMAP-BOUNDARY-HARDENING.md
+const DARK_BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/dark';
 
 interface ScreenRoadMarker {
   id: string;
@@ -101,7 +81,7 @@ export const MapStage: React.FC = () => {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: CARTO_DARK_STYLE,
+      style: DARK_BASEMAP_STYLE,
       center: [106.698, 10.782],
       zoom: 12.5,
       pitch: activeLayers.is3D ? 48 : 0,
@@ -110,7 +90,10 @@ export const MapStage: React.FC = () => {
         [106.35, 10.35],
         [107.05, 11.15],
       ],
-      attributionControl: false,
+      attributionControl: {
+        compact: true,
+        customAttribution: '© OpenFreeMap, © OpenStreetMap contributors',
+      },
     });
 
     mapRef.current = map;
@@ -128,11 +111,27 @@ export const MapStage: React.FC = () => {
         source: 'hcmc-outside-mask',
         paint: {
           'fill-color': '#030910',
-          'fill-opacity': 0.65,
+          'fill-opacity': 0.72,
         },
       });
 
-      // 2. HCMC Administrative Boundary Line
+      // 2. HCMC Administrative Boundary Transparent Fill (visual hierarchy)
+      map.addSource('hcmc-boundary-polygon', {
+        type: 'geojson',
+        data: HCMC_BOUNDARY_POLYGON_GEOJSON,
+      });
+
+      map.addLayer({
+        id: 'hcmc-boundary-fill',
+        type: 'fill',
+        source: 'hcmc-boundary-polygon',
+        paint: {
+          'fill-color': '#0284c7',
+          'fill-opacity': 0.04,
+        },
+      });
+
+      // 3. HCMC Administrative Boundary Stroke
       map.addSource('hcmc-boundary-line', {
         type: 'geojson',
         data: HCMC_BOUNDARY_LINE_GEOJSON,
@@ -145,7 +144,7 @@ export const MapStage: React.FC = () => {
         paint: {
           'line-color': '#38bdf8',
           'line-width': 1.8,
-          'line-opacity': 0.55,
+          'line-opacity': 0.65,
           'line-dasharray': [3, 2],
         },
       });
