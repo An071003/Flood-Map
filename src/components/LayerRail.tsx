@@ -6,6 +6,7 @@ export const LayerRail: React.FC = () => {
   const toggleLayer = useAppStore((s) => s.toggleLayer);
   const set3D = useAppStore((s) => s.set3D);
   const triggerResetCamera = useAppStore((s) => s.triggerResetCamera);
+  const setSelectedRoadId = useAppStore((s) => s.setSelectedRoadId);
 
   return (
     <aside className="layer-rail" aria-label="Bộ điều khiển lớp bản đồ">
@@ -63,8 +64,11 @@ export const LayerRail: React.FC = () => {
 
       <button
         className="rail-btn"
-        onClick={triggerResetCamera}
-        title="Định vị về trung tâm toàn cảnh TP.HCM"
+        onClick={() => {
+          setSelectedRoadId(null);
+          triggerResetCamera();
+        }}
+        title="Định vị về toàn cảnh TP.HCM (Xem ranh giới & ngoài thành phố)"
         aria-label="Về góc nhìn toàn cảnh thành phố"
       >
         ⌖

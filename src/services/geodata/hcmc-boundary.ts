@@ -151,3 +151,14 @@ export function isCoordinateInsideHCMC(coord: [number, number]): boolean {
 
   return inside;
 }
+
+// Bounding box [southwest, northeast] covering all mainland HCMC and Can Gio island cluster
+export const HCMC_BOUNDS: [[number, number], [number, number]] = [
+  [106.35, 10.35],
+  [107.10, 11.22],
+];
+
+// Optimal city overview center and zoom level to view full administrative perimeter and outside mask
+export const HCMC_OVERVIEW_CENTER: [number, number] = [106.72, 10.78];
+export const HCMC_OVERVIEW_ZOOM = 10.0;
+

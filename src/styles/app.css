@@ -247,6 +247,10 @@ input:focus-visible,
   border-radius: var(--radius-sm);
 }
 
+.mobile-search-btn {
+  display: none;
+}
+
 /* Map Stage */
 .map-stage {
   position: relative;
@@ -1112,13 +1116,36 @@ input[type=range] {
     height: calc(100vh - 64px);
   }
 
+  .top-actions .mobile-search-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 20px;
+    padding: 0;
+  }
+
   /* Compact Layer Rail with >= 44px touch targets */
   .layer-rail {
     top: 12px;
     left: 12px;
     width: auto;
+    max-width: calc(100vw - 24px);
     flex-direction: row;
     padding: 4px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 20;
+  }
+  .layer-rail .rail-sep {
+    width: 1px;
+    height: 24px;
+    margin: 10px 2px;
+    background: var(--border-subtle);
   }
   .rail-btn {
     width: 44px;
@@ -1126,9 +1153,6 @@ input[type=range] {
     min-width: 44px;
     min-height: 44px;
     font-size: 17px;
-  }
-  .layer-rail .rail-btn:nth-child(n+4), .rail-sep {
-    display: none;
   }
 
   .legend, .city-card {

@@ -1,38 +1,19 @@
-# Flood Map HCMC — V3.2 Final Polish Pack
+# Flood Map HCMC — V3.3
 
-V3.2 là vòng hoàn thiện cuối cho core Flood Map hiện tại.
+Pack này chỉ xử lý các phần còn thiếu của bản live hiện tại:
+- boundary TP.HCM thật
+- outside-city mask
+- mobile bottom sheet được test thật ở 390×844 và 360×800
+- regression/performance/release QA
 
-## Giữ nguyên
-- Road-first
-- Major roads
-- Search persistence
-- Correct road anchoring
-- Inspector hiện tại
-- Timeline 24h
-- Data provenance
-- Confidence wording
-- Vehicle passability
-- Basemap hiện tại
+Giữ nguyên các phần đã tốt: road-first, search, road alignment, timeline, basemap, data provenance, confidence wording, 3D depth.
 
-## Chỉ tối ưu 4 nhóm
-1. HCMC boundary + outside mask
-2. 3D depth differentiation
-3. Mobile bottom sheet
-4. Performance + release QA
+## Thứ tự chạy
+1. Đọc `AGENT-V3.3.md`
+2. Chạy `BOUNDARY-ROOT-CAUSE-PROMPT.md`
+3. Chạy `IMPLEMENT-V3.3-PROMPT.md`
+4. Chạy `MOBILE-VERIFY-PROMPT.md`
+5. Deploy
+6. Chạy `RELEASE-V3.3-PROMPT.md`
 
-## Không làm trong V3.2
-- Routing engine
-- Login
-- AI chatbot
-- Crowdsourcing
-- Analytics dashboard
-- Thêm layer mới
-- Redesign toàn bộ UI
-
-## Cách chạy với Gemini
-1. Đọc `AGENT-V3.2.md`
-2. Chạy `REVIEW-V3.2-PROMPT.md`
-3. Sau audit, chạy `IMPLEMENT-V3.2-PROMPT.md`
-4. Chạy `RELEASE-V3.2-PROMPT.md`
-
-Không coi V3.2 hoàn tất nếu bất kỳ Critical/High nào trong checklist còn fail.
+Không được báo hoàn thành nếu Critical/High trong checklist còn fail.

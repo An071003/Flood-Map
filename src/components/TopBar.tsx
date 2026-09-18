@@ -49,6 +49,15 @@ export const TopBar: React.FC = () => {
         </div>
 
         <button
+          className="icon-btn mobile-search-btn"
+          onClick={() => setSearchOpen(true)}
+          title="Tìm kiếm tuyến đường trên di động"
+          aria-label="Tìm kiếm tuyến đường trên di động"
+        >
+          ⌕
+        </button>
+
+        <button
           className={`icon-btn mode-btn ${activeLayers.is3D ? 'active' : ''}`}
           onClick={() => set3D(!activeLayers.is3D)}
           title={activeLayers.is3D ? 'Chuyển sang chế độ phẳng 2D' : 'Xem góc nghiêng 3D'}

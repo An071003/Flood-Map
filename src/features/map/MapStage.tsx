@@ -8,6 +8,8 @@ import {
   HCMC_BOUNDARY_LINE_GEOJSON,
   HCMC_BOUNDARY_POLYGON_GEOJSON,
   HCMC_OUTSIDE_MASK_GEOJSON,
+  HCMC_OVERVIEW_CENTER,
+  HCMC_OVERVIEW_ZOOM,
 } from '../../services/geodata/hcmc-boundary';
 
 // Open-source dark vector basemap with zero API keys and zero watermarks
@@ -87,8 +89,8 @@ export const MapStage: React.FC = () => {
       pitch: activeLayers.is3D ? 48 : 0,
       bearing: activeLayers.is3D ? -16 : 0,
       maxBounds: [
-        [106.35, 10.35],
-        [107.05, 11.15],
+        [106.25, 10.30],
+        [107.18, 11.28],
       ],
       attributionControl: {
         compact: true,
@@ -142,9 +144,9 @@ export const MapStage: React.FC = () => {
         type: 'line',
         source: 'hcmc-boundary-line',
         paint: {
-          'line-color': '#38bdf8',
-          'line-width': 1.8,
-          'line-opacity': 0.65,
+          'line-color': '#22d3ee',
+          'line-width': 2.2,
+          'line-opacity': 0.85,
           'line-dasharray': [3, 2],
         },
       });
@@ -350,17 +352,17 @@ export const MapStage: React.FC = () => {
     });
   }, [activeLayers.is3D]);
 
-  // Camera reset
+  // Camera reset / City overview
   useEffect(() => {
     if (cameraResetNonce === 0) return;
     const map = mapRef.current;
     if (!map) return;
     map.flyTo({
-      center: [106.698, 10.782],
-      zoom: 12.5,
-      pitch: activeLayers.is3D ? 48 : 0,
-      bearing: activeLayers.is3D ? -16 : 0,
-      duration: 900,
+      center: HCMC_OVERVIEW_CENTER,
+      zoom: HCMC_OVERVIEW_ZOOM,
+      pitch: activeLayers.is3D ? 36 : 0,
+      bearing: activeLayers.is3D ? -12 : 0,
+      duration: 1000,
       essential: true,
     });
   }, [cameraResetNonce, activeLayers.is3D]);
