@@ -38,6 +38,9 @@ export const MapStage: React.FC = () => {
   const timelineHour = useAppStore((s) => s.timelineHour);
   const activeLayers = useAppStore((s) => s.activeLayers);
   const cameraResetNonce = useAppStore((s) => s.cameraResetNonce);
+  const isRoutePlannerOpen = useAppStore((s) => s.isRoutePlannerOpen);
+  const routeCandidates = useAppStore((s) => s.routeCandidates);
+  const selectedRouteCandidateId = useAppStore((s) => s.selectedRouteCandidateId);
 
   const weatherService = useMemo(() => RoadWeatherService.getInstance(), []);
   const snapshots = useMemo(
@@ -263,10 +266,104 @@ export const MapStage: React.FC = () => {
         map.getCanvas().style.cursor = '';
       });
 
-      // 4. Three.js 3D Road Flood Ribbon Layer
+      // 4. V4 Route Planner Layers
+      map.addSource('hcmc-route-alternatives', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: 'hcmc-route-alternatives-line',
+        type: 'line',
+        source: 'hcmc-route-alternatives',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#94a3b8',
+          'line-width': 5,
+          'line-opacity': 0.45,
+          'line-dasharray': [2, 2],
+        },
+      });
+
+      map.addSource('hcmc-route-selected', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: 'hcmc-route-selected-casing',
+        type: 'line',
+        source: 'hcmc-route-selected',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#020914',
+          'line-width': 12,
+          'line-opacity': 0.9,
+        },
+      });
+      map.addLayer({
+        id: 'hcmc-route-selected-glow',
+        type: 'line',
+        source: 'hcmc-route-selected',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#38bdf8',
+          'line-width': 9,
+          'line-opacity': 0.4,
+          'line-blur': 2,
+        },
+      });
+      map.addLayer({
+        id: 'hcmc-route-selected-line',
+        type: 'line',
+        source: 'hcmc-route-selected',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': [
+            'match',
+            ['get', 'riskLevel'],
+            'severe',
+            '#ff5d73',
+            'warning',
+            '#ff9f43',
+            'watch',
+            '#38bdf8',
+            'safe',
+            '#2fd39a',
+            '#94a3b8',
+          ],
+          'line-width': 6,
+          'line-opacity': 0.95,
+        },
+      });
+
+      map.addSource('hcmc-route-endpoints', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: 'hcmc-route-endpoints-circle',
+        type: 'circle',
+        source: 'hcmc-route-endpoints',
+        paint: {
+          'circle-radius': 9,
+          'circle-color': [
+            'match',
+            ['get', 'role'],
+            'origin',
+            '#2fd39a',
+            'destination',
+            '#ff5d73',
+            '#38bdf8',
+          ],
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+
+      // 5. Three.js 3D Road Flood Ribbon Layer
       const threeLayer = new ThreeFloodLayer();
       threeLayerRef.current = threeLayer;
       map.addLayer(threeLayer);
+
       threeLayer.updateData(snapshots, activeLayers);
 
       updateMarkerPositions();
@@ -367,7 +464,105 @@ export const MapStage: React.FC = () => {
     });
   }, [cameraResetNonce, activeLayers.is3D]);
 
+  // V4 Route Map Sync & Camera Fit
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const altSource = map.getSource('hcmc-route-alternatives') as maplibregl.GeoJSONSource | undefined;
+    const selSource = map.getSource('hcmc-route-selected') as maplibregl.GeoJSONSource | undefined;
+    const endSource = map.getSource('hcmc-route-endpoints') as maplibregl.GeoJSONSource | undefined;
+
+    if (!altSource || !selSource || !endSource) return;
+
+    if (!isRoutePlannerOpen || routeCandidates.length === 0) {
+      altSource.setData({ type: 'FeatureCollection', features: [] });
+      selSource.setData({ type: 'FeatureCollection', features: [] });
+      endSource.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    const selectedCandidate =
+      routeCandidates.find((c) => c.id === selectedRouteCandidateId) || routeCandidates[0];
+
+    if (!selectedCandidate) return;
+
+    // 1. Alternatives: geometry of other candidate routes
+    const altFeatures = routeCandidates
+      .filter((c) => c.id !== selectedCandidate.id)
+      .map((c) => ({
+        type: 'Feature' as const,
+        properties: { id: c.id, strategy: c.strategy },
+        geometry: c.geometry,
+      }));
+    altSource.setData({ type: 'FeatureCollection', features: altFeatures });
+
+    // 2. Selected Route: segment by segment with flood properties
+    const selFeatures = selectedCandidate.segments.map((seg) => {
+      const floodState = seg.floodForecast[timelineHour] || seg.floodForecast[0];
+      return {
+        type: 'Feature' as const,
+        properties: {
+          id: seg.id,
+          roadName: seg.roadName,
+          riskLevel: floodState?.status === 'unknown' ? 'unknown' : floodState?.riskLevel || 'safe',
+          depthCm: floodState?.estimatedDepthCm ?? 0,
+        },
+        geometry: seg.geometry,
+      };
+    });
+    selSource.setData({ type: 'FeatureCollection', features: selFeatures });
+
+    // 3. Endpoints A & B
+    const coords = selectedCandidate.geometry.coordinates;
+    const endpoints = [];
+    if (coords.length > 0) {
+      endpoints.push({
+        type: 'Feature' as const,
+        properties: { role: 'origin', label: 'A' },
+        geometry: { type: 'Point' as const, coordinates: coords[0] },
+      });
+      endpoints.push({
+        type: 'Feature' as const,
+        properties: { role: 'destination', label: 'B' },
+        geometry: { type: 'Point' as const, coordinates: coords[coords.length - 1] },
+      });
+    }
+    endSource.setData({ type: 'FeatureCollection', features: endpoints });
+
+    // 4. Fit camera bounds
+    if (coords.length >= 2) {
+      let minLng = coords[0][0];
+      let maxLng = coords[0][0];
+      let minLat = coords[0][1];
+      let maxLat = coords[0][1];
+
+      for (const [lng, lat] of coords) {
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+
+      const isMobile = window.innerWidth <= 700;
+      map.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        {
+          padding: isMobile
+            ? { top: 80, bottom: 260, left: 40, right: 40 }
+            : { top: 100, bottom: 100, left: 440, right: 100 },
+          duration: 900,
+          essential: true,
+        }
+      );
+    }
+  }, [isRoutePlannerOpen, routeCandidates, selectedRouteCandidateId, timelineHour]);
+
   return (
+
     <div
       className="map-stage-container"
       style={{ position: 'relative', width: '100%', height: '100%', background: '#07111f' }}

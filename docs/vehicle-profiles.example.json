@@ -1,0 +1,70 @@
+{
+  "motorbike": {
+    "label": "Xe máy",
+    "unknownPenalty": 120,
+    "warningPenalty": 180,
+    "severePenalty": 600,
+    "depthPenaltyCurve": [
+      {
+        "minCm": 0,
+        "maxCm": 5,
+        "penalty": 0
+      },
+      {
+        "minCm": 6,
+        "maxCm": 15,
+        "penalty": 30
+      },
+      {
+        "minCm": 16,
+        "maxCm": 25,
+        "penalty": 180
+      },
+      {
+        "minCm": 26,
+        "maxCm": 35,
+        "penalty": 600
+      },
+      {
+        "minCm": 36,
+        "maxCm": null,
+        "penalty": 1200
+      }
+    ],
+    "note": "Routing heuristic only; not a safety guarantee."
+  },
+  "car": {
+    "label": "Xe hơi",
+    "unknownPenalty": 100,
+    "warningPenalty": 120,
+    "severePenalty": 500,
+    "depthPenaltyCurve": [
+      {
+        "minCm": 0,
+        "maxCm": 5,
+        "penalty": 0
+      },
+      {
+        "minCm": 6,
+        "maxCm": 15,
+        "penalty": 10
+      },
+      {
+        "minCm": 16,
+        "maxCm": 25,
+        "penalty": 80
+      },
+      {
+        "minCm": 26,
+        "maxCm": 35,
+        "penalty": 300
+      },
+      {
+        "minCm": 36,
+        "maxCm": null,
+        "penalty": 1000
+      }
+    ],
+    "note": "Routing heuristic only; vehicle-specific clearance varies."
+  }
+}

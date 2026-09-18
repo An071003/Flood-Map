@@ -1,19 +1,31 @@
-# Flood Map HCMC — V3.3
+# Flood Map HCMC — V4 Route Planner
 
-Pack này chỉ xử lý các phần còn thiếu của bản live hiện tại:
-- boundary TP.HCM thật
-- outside-city mask
-- mobile bottom sheet được test thật ở 390×844 và 360×800
-- regression/performance/release QA
+V4 nâng Flood Map từ **xem nguy cơ ngập theo đường** thành **tìm tuyến đi phù hợp với loại phương tiện và mức ngập**.
 
-Giữ nguyên các phần đã tốt: road-first, search, road alignment, timeline, basemap, data provenance, confidence wording, 3D depth.
+## Product statement
+Người dùng chọn điểm đi, điểm đến, phương tiện (xe máy / xe hơi) và thời điểm. Hệ thống tạo nhiều tuyến ứng viên rồi xếp hạng theo thời gian di chuyển, mức ngập ước tính, độ tin cậy dữ liệu và độ phủ dữ liệu.
 
-## Thứ tự chạy
-1. Đọc `AGENT-V3.3.md`
-2. Chạy `BOUNDARY-ROOT-CAUSE-PROMPT.md`
-3. Chạy `IMPLEMENT-V3.3-PROMPT.md`
-4. Chạy `MOBILE-VERIFY-PROMPT.md`
-5. Deploy
-6. Chạy `RELEASE-V3.3-PROMPT.md`
+## Route options
+- `LEAST_FLOOD` — ưu tiên giảm rủi ro ngập.
+- `BALANCED` — cân bằng ngập + thời gian.
+- `FASTEST` — ưu tiên thời gian nhưng vẫn áp dụng flood blocking/penalty.
 
-Không được báo hoàn thành nếu Critical/High trong checklist còn fail.
+## Vehicle modes
+- `motorbike`
+- `car`
+
+## Rule quan trọng
+Segment chưa đủ dữ liệu phải là `UNKNOWN`, không được tự gán `0 cm`.
+
+Không gọi một tuyến là “an toàn tuyệt đối”. Wording nên là:
+- `Ít rủi ro ngập hơn`
+- `Không khuyến nghị theo mô hình`
+- `Độ phủ dữ liệu tuyến`
+- `Có đoạn chưa đủ dữ liệu`
+
+## Chạy với Gemini
+1. `AGENT-V4.md`
+2. `REVIEW-V4-PROMPT.md`
+3. `IMPLEMENT-V4-PROMPT.md`
+4. `ROUTE-QA-PROMPT.md`
+5. `RELEASE-V4-PROMPT.md`

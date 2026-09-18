@@ -1,0 +1,156 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { RoutingEngine } from '../../src/domain/routing/routing-engine';
+import { VEHICLE_PROFILES, getDepthPenalty } from '../../src/domain/routing/vehicle-profiles';
+import { calculateSegmentCost, evaluateRoute } from '../../src/domain/routing/route-cost-engine';
+import { HCMC_GRAPH_SEGMENTS } from '../../src/services/geodata/hcmc-graph-network';
+
+describe('V4 Route Planner & Cost Engine (Spec: ROUTE-QA-PROMPT.md)', () => {
+  let engine: RoutingEngine;
+
+  beforeEach(() => {
+    engine = RoutingEngine.getInstance();
+  });
+
+  describe('Scenario A: Vehicle Profiles (Motorbike vs Car)', () => {
+    it('applies different penalty curves to motorbike and car for 20cm flood', () => {
+      const mbPen = getDepthPenalty(20, VEHICLE_PROFILES.motorbike);
+      const carPen = getDepthPenalty(20, VEHICLE_PROFILES.car);
+
+      // Motorbikes are more sensitive to 20cm flood than cars
+      expect(mbPen).toBe(180);
+      expect(carPen).toBe(80);
+      expect(mbPen).toBeGreaterThan(carPen);
+    });
+
+    it('produces higher cost for motorbike on flooded segments like Nguyen Huu Canh', () => {
+      const nhcSegment = HCMC_GRAPH_SEGMENTS.find((s) => s.id === 'seg-nhc-1')!;
+      expect(nhcSegment).toBeDefined();
+
+      const mbCost = calculateSegmentCost(nhcSegment, VEHICLE_PROFILES.motorbike, 0, 'LEAST_FLOOD');
+      const carCost = calculateSegmentCost(nhcSegment, VEHICLE_PROFILES.car, 0, 'LEAST_FLOOD');
+
+      expect(mbCost).toBeGreaterThan(carCost);
+    });
+  });
+
+  describe('Scenario B: Forecast Departure Hour (NOW vs +3h vs +12h)', () => {
+    it('recalculates segment cost and depth when timeline changes from NOW to +3h and +12h', () => {
+      const nhcSegment = HCMC_GRAPH_SEGMENTS.find((s) => s.id === 'seg-nhc-1')!;
+      
+      const costHour0 = calculateSegmentCost(nhcSegment, VEHICLE_PROFILES.motorbike, 0, 'LEAST_FLOOD');
+      const costHour3 = calculateSegmentCost(nhcSegment, VEHICLE_PROFILES.motorbike, 3, 'LEAST_FLOOD');
+      const costHour12 = calculateSegmentCost(nhcSegment, VEHICLE_PROFILES.motorbike, 12, 'LEAST_FLOOD');
+
+      // Hour 3 has peak accumulated rain (38cm vs 28cm at hour 0)
+      expect(costHour3).toBeGreaterThan(costHour0);
+      // Hour 12 water recedes (8cm vs 28cm at hour 0)
+      expect(costHour0).toBeGreaterThan(costHour12);
+    });
+
+    it('changes route evaluation maxDepth across timeline hours', () => {
+      const candidatesH0 = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      const candidatesH12 = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 12,
+      });
+
+      expect(candidatesH0.length).toBeGreaterThan(0);
+      expect(candidatesH12.length).toBeGreaterThan(0);
+
+      // At hour 12, water has drained significantly across the city
+      const leastFloodH0 = candidatesH0.find((c) => c.strategy === 'LEAST_FLOOD')!;
+      const leastFloodH12 = candidatesH12.find((c) => c.strategy === 'LEAST_FLOOD')!;
+
+      expect(leastFloodH12.maxDepthCm).toBeLessThanOrEqual(leastFloodH0.maxDepthCm);
+    });
+  });
+
+  describe('Scenario C: Unknown Segment Policy', () => {
+    it('never treats UNKNOWN segments as 0 cm or safe', () => {
+      const unknownSeg = HCMC_GRAPH_SEGMENTS.find((s) => s.id === 'seg-doan-van-bo-connector-unknown')!;
+      expect(unknownSeg).toBeDefined();
+
+      const cost = calculateSegmentCost(unknownSeg, VEHICLE_PROFILES.motorbike, 0, 'LEAST_FLOOD');
+      // Cost must exceed base travel time due to unknown penalty
+      expect(cost).toBeGreaterThan(unknownSeg.estimatedTravelSeconds);
+
+      const evaluated = evaluateRoute([unknownSeg], 'LEAST_FLOOD', 0, VEHICLE_PROFILES.motorbike);
+      expect(evaluated.unknownCount).toBe(1);
+      expect(evaluated.coveragePercent).toBe(0);
+      expect(evaluated.recommendationState).toBe('insufficient_data');
+    });
+  });
+
+  describe('Scenario D: Severe Segment Avoidance in Least Flood', () => {
+    it('chooses Dien Bien Phu corridor over flooded Nguyen Huu Canh for Least Flood strategy', () => {
+      const candidates = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-cau-sai-gon-bt',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      expect(candidates.length).toBeGreaterThan(0);
+
+      const leastFlood = candidates.find((c) => c.strategy === 'LEAST_FLOOD');
+      expect(leastFlood).toBeDefined();
+
+      // Least Flood must NOT use the flooded Nguyen Huu Canh segment (28cm)
+      const usedNHC = leastFlood!.segments.some((s) => s.roadId === 'nguyen-huu-canh');
+      expect(usedNHC).toBe(false);
+
+      // Least Flood uses the elevated Dien Bien Phu corridor
+      const usedDBP = leastFlood!.segments.some((s) => s.roadId === 'dien-bien-phu');
+      expect(usedDBP).toBe(true);
+      expect(leastFlood!.maxDepthCm).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe('Scenario E: Route Explainability & No Guarantee Wording', () => {
+    it('provides human-readable explanation and avoids absolute safety guarantee wording', () => {
+      const candidates = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'car',
+        departureHour: 0,
+      });
+
+      for (const candidate of candidates) {
+        expect(candidate.explanation.length).toBeGreaterThan(10);
+        expect(candidate.recommendationText.length).toBeGreaterThan(5);
+
+        // FORBIDDEN wording check
+        const text = `${candidate.explanation} ${candidate.recommendationText}`.toLowerCase();
+        expect(text).not.toContain('bảo đảm an toàn tuyệt đối');
+        expect(text).not.toContain('chắc chắn không ngập');
+        expect(text).not.toContain('an toàn 100%');
+      }
+    });
+  });
+
+  describe('Scenario F: Route Deduplication', () => {
+    it('does not return duplicate route candidates if paths are identical', () => {
+      // Connect across Cau Sai Gon where only 1 single physical link exists
+      const candidates = engine.findRoutes({
+        originNodeId: 'node-cau-sai-gon-bt',
+        destinationNodeId: 'node-cau-sai-gon-td',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      // Exactly 1 unique route exists, so no fake duplicates are generated
+      expect(candidates.length).toBe(1);
+      expect(candidates[0].segments.length).toBe(1);
+      expect(candidates[0].segments[0].id).toBe('seg-cau-sai-gon');
+    });
+  });
+
+});

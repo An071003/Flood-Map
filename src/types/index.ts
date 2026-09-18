@@ -141,3 +141,101 @@ export interface AreaSnapshot {
   coordinates: [number, number];
   polygon: [number, number][];
 }
+
+// ---------------------------------------------------------------------------
+// V4 Route Planner & Topological Road Network Types (Spec: AGENT-V4.md)
+// ---------------------------------------------------------------------------
+
+export interface RoadNode {
+  id: string;
+  name: string;
+  district: string;
+  lng: number;
+  lat: number;
+  isMajorHub?: boolean;
+}
+
+export type RoadClass = 'trunk' | 'primary' | 'secondary' | 'tertiary';
+
+export type FloodStatus = 'known' | 'unknown';
+
+export interface SegmentFloodState {
+  status: FloodStatus;
+  estimatedDepthCm?: number;
+  riskLevel?: RiskLevel;
+  confidenceBand?: ConfidenceBand;
+  dataCompleteness?: number;
+  forecastFor: string;
+}
+
+export interface GraphRoadSegment {
+  id: string;
+  roadId: string;
+  roadName: string;
+  district: string;
+  roadClass: RoadClass;
+  fromNodeId: string;
+  toNodeId: string;
+  bidirectional: boolean;
+  lengthMeters: number;
+  estimatedTravelSeconds: number;
+  geometry: {
+    type: 'LineString';
+    coordinates: [number, number][];
+  };
+  floodForecast: Record<number, SegmentFloodState>;
+}
+
+export type VehicleType = 'motorbike' | 'car';
+
+export interface DepthPenaltyBracket {
+  minCm: number;
+  maxCm: number | null;
+  penalty: number;
+}
+
+export interface VehicleProfile {
+  type: VehicleType;
+  label: string;
+  unknownPenalty: number;
+  warningPenalty: number;
+  severePenalty: number;
+  depthPenaltyCurve: DepthPenaltyBracket[];
+  note: string;
+}
+
+export type RouteStrategy = 'LEAST_FLOOD' | 'BALANCED' | 'FASTEST';
+
+export interface RouteCandidate {
+  id: string;
+  strategy: RouteStrategy;
+  strategyLabel: string;
+  segments: GraphRoadSegment[];
+  totalDistanceMeters: number;
+  totalDurationSeconds: number;
+  maxDepthCm: number;
+  worstSegment: {
+    roadName: string;
+    depthCm: number;
+    riskLevel: RiskLevel | 'unknown';
+  } | null;
+  warningCount: number;
+  severeCount: number;
+  unknownCount: number;
+  coveragePercent: number; // 0..100
+  recommendationState: 'favorable' | 'caution' | 'not_recommended' | 'insufficient_data';
+  recommendationText: string;
+  explanation: string;
+  geometry: {
+    type: 'LineString';
+    coordinates: [number, number][];
+  };
+}
+
+export interface RouteRequest {
+  originNodeId: string;
+  destinationNodeId: string;
+  vehicle: VehicleType;
+  departureHour: number;
+}
+

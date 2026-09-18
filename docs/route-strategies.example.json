@@ -1,0 +1,18 @@
+{
+  "LEAST_FLOOD": {
+    "timeWeight": 0.4,
+    "floodWeight": 1.0,
+    "unknownWeight": 1.0
+  },
+  "BALANCED": {
+    "timeWeight": 0.8,
+    "floodWeight": 0.8,
+    "unknownWeight": 0.9
+  },
+  "FASTEST": {
+    "timeWeight": 1.0,
+    "floodWeight": 0.4,
+    "unknownWeight": 0.7
+  },
+  "note": "Example starting weights only; calibrate and keep configurable."
+}

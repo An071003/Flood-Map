@@ -8,6 +8,8 @@ export const TopBar: React.FC = () => {
   const persistedSearchQuery = useAppStore((s) => s.persistedSearchQuery);
   const dataState = useAppStore((s) => s.dataState);
   const lastUpdatedTimestamp = useAppStore((s) => s.lastUpdatedTimestamp);
+  const isRoutePlannerOpen = useAppStore((s) => s.isRoutePlannerOpen);
+  const setRoutePlannerOpen = useAppStore((s) => s.setRoutePlannerOpen);
 
   return (
     <header className="topbar" role="banner">
@@ -34,7 +36,19 @@ export const TopBar: React.FC = () => {
       </button>
 
       <div className="top-actions">
+        <button
+          className={`icon-btn route-planner-btn ${isRoutePlannerOpen ? 'active' : ''}`}
+          onClick={() => setRoutePlannerOpen(!isRoutePlannerOpen)}
+          title={isRoutePlannerOpen ? 'Đóng bộ tìm đường' : 'Tìm đường tránh ngập (V4)'}
+          aria-label="Tìm đường tránh ngập"
+          aria-pressed={isRoutePlannerOpen}
+        >
+          <span className="route-btn-icon" aria-hidden="true">🧭</span>
+          <span className="route-btn-label">Tìm đường</span>
+        </button>
+
         <div className={`freshness ${dataState}`} title="Trạng thái độ tin cậy nguồn dữ liệu đầu vào">
+
           <span className={`live-dot ${dataState}`} aria-hidden="true"></span>
           <div>
             <strong>Mô hình ước tính</strong>
