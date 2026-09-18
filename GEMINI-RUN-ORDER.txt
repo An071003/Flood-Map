@@ -1,0 +1,8 @@
+1. Read AGENT.md from V3.
+2. Read AGENT-V3.1.md if present.
+3. Read AGENT-V3.2.md.
+4. Run REVIEW-V3.2-PROMPT.md.
+5. Do not code until audit is complete.
+6. Run IMPLEMENT-V3.2-PROMPT.md phase by phase.
+7. Run RELEASE-V3.2-PROMPT.md.
+8. Do not report complete until all Critical + High items pass.

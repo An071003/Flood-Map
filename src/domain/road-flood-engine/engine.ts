@@ -15,14 +15,15 @@ export function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Visual height mapping for 3D road flood ribbon from docs/10-3D-ROAD-FLOOD-VISUAL-SPEC.md
- * 5 cm: subtle
- * 15 cm: low-mid
- * 30 cm: distinct
- * 50 cm: prominent
+ * Visual height mapping for 3D road flood ribbon from IMPLEMENT-V3.2-PROMPT.md & docs/27-3D-DEPTH-POLISH.md
+ * visualHeight = clamp(0.12 + depthCm * 0.03, 0.12, 1.8)
+ * 5–7 cm: low (0.27 - 0.33)
+ * 15 cm: low-mid (0.57)
+ * 25–30 cm: distinct (0.87 - 1.02)
+ * 37+ cm: prominent (1.23 - 1.80)
  */
 export function calculate3DHeight(depthCm: number): number {
-  return clamp(0.08 + depthCm * 0.02, 0.08, 1.4);
+  return clamp(0.12 + depthCm * 0.03, 0.12, 1.8);
 }
 
 export function determineRiskLevel(depthCm: number): RiskLevel {

@@ -1112,7 +1112,7 @@ input[type=range] {
     height: calc(100vh - 64px);
   }
 
-  /* Compact Layer Rail */
+  /* Compact Layer Rail with >= 44px touch targets */
   .layer-rail {
     top: 12px;
     left: 12px;
@@ -1121,8 +1121,11 @@ input[type=range] {
     padding: 4px;
   }
   .rail-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 17px;
   }
   .layer-rail .rail-btn:nth-child(n+4), .rail-sep {
     display: none;
@@ -1132,18 +1135,37 @@ input[type=range] {
     display: none;
   }
 
-  /* Timeline for Mobile */
+  /* Timeline for Mobile: Compact horizontal strip */
   .timeline {
     left: 10px;
     right: 10px;
-    bottom: 84px;
-    height: 72px;
-    grid-template-columns: 110px 1fr;
-    padding: 8px 12px;
-    z-index: 22;
+    bottom: 136px;
+    height: 48px;
+    grid-template-columns: auto 1fr;
+    padding: 4px 10px;
+    z-index: 25;
+    gap: 8px;
+    align-items: center;
+  }
+  .timeline-head span {
+    display: none;
+  }
+  .timeline-head strong {
+    font-size: 11px;
+  }
+  .timeline-head .play {
+    width: 44px;
+    height: 38px;
+    min-width: 44px;
+    min-height: 38px;
   }
   .timeline .forecast-chip {
     display: none;
+  }
+  .timeline-step-pill {
+    min-height: 34px;
+    padding: 4px 8px;
+    font-size: 10px;
   }
 
   /* Mobile Bottom Sheet Inspector with Touch Gestures */
@@ -1154,7 +1176,7 @@ input[type=range] {
     top: auto;
     bottom: 0;
     width: 100%;
-    height: 220px;
+    height: auto;
     max-height: 85vh;
     padding: 8px 16px 24px;
     border-radius: 20px 20px 0 0;
@@ -1170,9 +1192,25 @@ input[type=range] {
     overflow: hidden;
   }
 
+  .inspector.sheet-collapsed .decision-grid,
+  .inspector.sheet-collapsed .vehicle-advisory-box,
+  .inspector.sheet-collapsed .reason-box,
+  .inspector.sheet-collapsed .advice,
+  .inspector.sheet-collapsed .expand-details-btn,
+  .inspector.sheet-collapsed .expanded-technical-details {
+    display: none;
+  }
+
   .inspector.sheet-half {
     max-height: 48vh;
     overflow-y: auto;
+  }
+
+  .inspector.sheet-half .vehicle-advisory-box,
+  .inspector.sheet-half .advice,
+  .inspector.sheet-half .expand-details-btn,
+  .inspector.sheet-half .expanded-technical-details {
+    display: none;
   }
 
   .inspector.sheet-expanded {

@@ -10,21 +10,30 @@ import { MAJOR_HCMC_ROADS } from '../../src/services/geodata/hcmc-roads';
 describe('Road-First Flood Engine V3', () => {
   const sampleRoad = MAJOR_HCMC_ROADS[0]; // Nguyễn Hữu Cảnh
 
-  describe('Visual 3D Height mapping (docs/10-3D-ROAD-FLOOD-VISUAL-SPEC.md)', () => {
-    it('produces distinct 3D visual heights for 5cm, 15cm, 30cm, and 50cm', () => {
+  describe('Visual 3D Height mapping (docs/27-3D-DEPTH-POLISH.md)', () => {
+    it('produces distinct 3D visual heights for 5cm, 7cm, 15cm, 30cm, 37cm, and 50cm', () => {
       const h5 = calculate3DHeight(5);
+      const h7 = calculate3DHeight(7);
       const h15 = calculate3DHeight(15);
       const h30 = calculate3DHeight(30);
+      const h37 = calculate3DHeight(37);
       const h50 = calculate3DHeight(50);
 
-      expect(h5).toBeLessThan(h15);
+      expect(h5).toBeLessThan(h7);
+      expect(h7).toBeLessThan(h15);
       expect(h15).toBeLessThan(h30);
-      expect(h30).toBeLessThan(h50);
+      expect(h30).toBeLessThan(h37);
+      expect(h37).toBeLessThan(h50);
 
-      expect(h5).toBeCloseTo(0.18, 2);
-      expect(h15).toBeCloseTo(0.38, 2);
-      expect(h30).toBeCloseTo(0.68, 2);
-      expect(h50).toBeCloseTo(1.08, 2);
+      expect(h5).toBeCloseTo(0.27, 2);
+      expect(h7).toBeCloseTo(0.33, 2);
+      expect(h15).toBeCloseTo(0.57, 2);
+      expect(h30).toBeCloseTo(1.02, 2);
+      expect(h37).toBeCloseTo(1.23, 2);
+      expect(h50).toBeCloseTo(1.62, 2);
+
+      // Distinct visual difference between shallow (7cm) and deep (37cm)
+      expect(h37 - h7).toBeGreaterThan(0.85);
     });
   });
 

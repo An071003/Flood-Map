@@ -98,6 +98,28 @@ export const HCMC_BOUNDARY_POLYGON_GEOJSON = {
   },
 };
 
+// Cần Giờ Thạnh An island cluster polygon
+export const THANH_AN_ISLAND_COORDINATES: [number, number][] = [
+  [107.032, 10.455],
+  [107.065, 10.468],
+  [107.085, 10.435],
+  [107.052, 10.418],
+  [107.032, 10.455],
+];
+
+// MultiPolygon representation supporting mainland HCMC and island clusters (docs/26-HCMC-BOUNDARY-SPEC.md)
+export const HCMC_BOUNDARY_MULTIPOLYGON_GEOJSON = {
+  type: 'Feature' as const,
+  properties: { name: 'Địa phận hành chính TP. Hồ Chí Minh (Đất liền & Hải đảo)' },
+  geometry: {
+    type: 'MultiPolygon' as const,
+    coordinates: [
+      [HCMC_BOUNDARY_COORDINATES],
+      [THANH_AN_ISLAND_COORDINATES],
+    ],
+  },
+};
+
 // HCMC administrative boundary outline
 export const HCMC_BOUNDARY_LINE_GEOJSON = {
   type: 'Feature' as const,
@@ -107,3 +129,25 @@ export const HCMC_BOUNDARY_LINE_GEOJSON = {
     coordinates: HCMC_BOUNDARY_COORDINATES,
   },
 };
+
+/**
+ * Validates whether a given [lng, lat] coordinate falls inside HCMC administrative boundary
+ * Uses Ray-Casting algorithm for point-in-polygon test
+ */
+export function isCoordinateInsideHCMC(coord: [number, number]): boolean {
+  const [lng, lat] = coord;
+  let inside = false;
+  const poly = HCMC_BOUNDARY_COORDINATES;
+
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0];
+    const yi = poly[i][1];
+    const xj = poly[j][0];
+    const yj = poly[j][1];
+
+    const intersect = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}

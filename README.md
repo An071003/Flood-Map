@@ -1,36 +1,38 @@
-# Flood Map HCMC — V3.1 Optimization Pack
+# Flood Map HCMC — V3.2 Final Polish Pack
 
-Bộ này **không thay V3**. Đây là lớp patch tối ưu cho project đã hoàn thành V3.
+V3.2 là vòng hoàn thiện cuối cho core Flood Map hiện tại.
 
-## Mục tiêu
-Giữ nguyên phần V3 đã làm tốt:
-- road-first
-- major roads
-- search persistence
-- road selection alignment
-- inspector road-first
-- timeline 24h
-- dark map-first UI
+## Giữ nguyên
+- Road-first
+- Major roads
+- Search persistence
+- Correct road anchoring
+- Inspector hiện tại
+- Timeline 24h
+- Data provenance
+- Confidence wording
+- Vehicle passability
+- Basemap hiện tại
 
-Chỉ sửa các điểm còn yếu:
-1. Xóa hoàn toàn `API KEY REQUIRED`.
-2. Render boundary TP.HCM thật.
-3. Làm rõ Observed / Forecast / Estimated.
-4. Giải thích đúng ý nghĩa confidence.
-5. Xác minh 3D depth có height thật chứ không chỉ đổi màu.
-6. Làm mobile bottom sheet đúng nghĩa.
-7. Tối ưu performance, reliability, accessibility.
-8. QA/release gate trước khi coi V3.1 hoàn tất.
+## Chỉ tối ưu 4 nhóm
+1. HCMC boundary + outside mask
+2. 3D depth differentiation
+3. Mobile bottom sheet
+4. Performance + release QA
 
-## Cách dùng
-1. Copy pack này vào root repo.
-2. Đọc `AGENT-V3.1.md`.
-3. Chạy `REVIEW-V3.1-PROMPT.md`.
-4. Sau audit, chạy `OPTIMIZE-PROMPT.md`.
-5. Cuối cùng chạy `RELEASE-CHECK-PROMPT.md`.
+## Không làm trong V3.2
+- Routing engine
+- Login
+- AI chatbot
+- Crowdsourcing
+- Analytics dashboard
+- Thêm layer mới
+- Redesign toàn bộ UI
 
-## Rule
-**Không rewrite app. Không phá V3. Không thêm feature ngoài scope.**
+## Cách chạy với Gemini
+1. Đọc `AGENT-V3.2.md`
+2. Chạy `REVIEW-V3.2-PROMPT.md`
+3. Sau audit, chạy `IMPLEMENT-V3.2-PROMPT.md`
+4. Chạy `RELEASE-V3.2-PROMPT.md`
 
-V3.1 là:
-`correctness -> credibility -> mobile -> performance -> polish`
+Không coi V3.2 hoàn tất nếu bất kỳ Critical/High nào trong checklist còn fail.

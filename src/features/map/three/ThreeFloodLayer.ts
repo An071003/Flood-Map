@@ -223,6 +223,14 @@ export class ThreeFloodLayer implements CustomLayerInterface {
   }
 
   private initRainParticles(): void {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const isReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    this.rainCount = isReducedMotion ? 0 : isMobile ? 350 : 1200;
+    if (this.rainCount === 0) return;
+
     const centerMercator = maplibregl.MercatorCoordinate.fromLngLat([106.69, 10.78]);
     const radius = 0.08;
 
@@ -344,6 +352,9 @@ export class ThreeFloodLayer implements CustomLayerInterface {
       this.scene.remove(this.rainParticles);
       this.rainParticles = null;
     }
+    this.rainPositions = null;
+    this.rainGeometry = null;
+    this.snapshots = [];
 
     this.renderer?.dispose();
     this.renderer = null;
