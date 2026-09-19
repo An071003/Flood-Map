@@ -159,14 +159,25 @@ export type RoadClass = 'trunk' | 'primary' | 'secondary' | 'tertiary';
 
 export type FloodStatus = 'known' | 'unknown';
 
-export interface SegmentFloodState {
-  status: FloodStatus;
-  estimatedDepthCm?: number;
-  riskLevel?: RiskLevel;
-  confidenceBand?: ConfidenceBand;
-  dataCompleteness?: number;
-  forecastFor: string;
-}
+export type FloodState =
+  | {
+      status: 'known';
+      estimatedDepthCm: number;
+      riskLevel?: RiskLevel;
+      confidenceBand?: ConfidenceBand;
+      dataCompleteness?: number;
+      forecastFor?: string;
+    }
+  | {
+      status: 'unknown';
+      reason?: 'missing_forecast' | 'missing_model_input' | 'unsupported_segment' | string;
+      riskLevel?: 'unknown';
+      confidenceBand?: ConfidenceBand;
+      dataCompleteness?: number;
+      forecastFor?: string;
+    };
+
+export type SegmentFloodState = FloodState;
 
 export interface GraphRoadSegment {
   id: string;
@@ -206,12 +217,23 @@ export interface VehicleProfile {
 
 export type RouteStrategy = 'LEAST_FLOOD' | 'BALANCED' | 'FASTEST';
 
+export type CandidateOmissionReason =
+  | 'duplicate'
+  | 'vehicle_blocked'
+  | 'flood_blocked'
+  | 'disconnected'
+  | 'no_distinct_alternative';
+
+export type CompatibilityLevel = 'CAO' | 'VỪA' | 'THẤP' | 'KHÔNG KHUYẾN NGHỊ';
+
 export interface RouteEvaluation {
   totalDistanceMeters: number;
   knownDistanceMeters: number;
-  dataCoverage: number; // 0..100 percentage
+  unknownDistanceMeters: number;
+  dataCoverage: number; // 0..1 ratio
   unknownSegmentCount: number;
-  maxEstimatedDepthCm?: number;
+  maxKnownDepthCm?: number;
+  maxEstimatedDepthCm?: number; // backwards compatibility alias
   worstKnownSegmentId?: string;
 }
 
@@ -221,6 +243,7 @@ export interface RouteCandidate {
   strategyLabel: string;
   vehicle: VehicleType;
   routeScore: number; // 0..100 suitability score
+  compatibilityLevel: CompatibilityLevel;
   segments: GraphRoadSegment[];
   totalDistanceMeters: number;
   totalDurationSeconds: number;
@@ -238,10 +261,18 @@ export interface RouteCandidate {
   recommendationState: 'favorable' | 'caution' | 'not_recommended' | 'insufficient_data';
   recommendationText: string;
   explanation: string;
+  omissionReason?: CandidateOmissionReason;
+  omissionNote?: string;
   geometry: {
     type: 'LineString';
     coordinates: [number, number][];
   };
+}
+
+export interface RoutePlanResult {
+  candidates: RouteCandidate[];
+  omissionReason?: CandidateOmissionReason;
+  omissionNote?: string;
 }
 
 export interface RouteRequest {
@@ -249,5 +280,6 @@ export interface RouteRequest {
   destinationNodeId: string;
   vehicle: VehicleType;
   departureHour: number;
+  diversityThreshold?: number;
 }
 

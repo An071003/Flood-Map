@@ -1,7 +1,9 @@
 import {
+  CandidateOmissionReason,
   GraphRoadSegment,
   RoadNode,
   RouteCandidate,
+  RoutePlanResult,
   RouteRequest,
   RouteStrategy,
 } from '../../types';
@@ -102,17 +104,44 @@ export class RoutingEngine {
     return null;
   }
 
+  private lastOmissionNote: string | null = null;
+  private lastOmissionReason: CandidateOmissionReason | null = null;
+
+  public getLastOmissionNote(): string | null {
+    return this.lastOmissionNote;
+  }
+
+  public getLastOmissionReason(): CandidateOmissionReason | null {
+    return this.lastOmissionReason;
+  }
+
+  /**
+   * Find alternative routes with complete planning result including omission reasons
+   */
+  public findRoutesWithPlan(req: RouteRequest): RoutePlanResult {
+    const candidates = this.findRoutes(req);
+    return {
+      candidates,
+      omissionReason: this.lastOmissionReason || undefined,
+      omissionNote: this.lastOmissionNote || undefined,
+    };
+  }
+
   /**
    * Find alternative routes for origin -> destination using Diversity Penalty Search
    * Guaranteed to discover distinct corridors when they exist, without inventing fake duplicates.
    */
   public findRoutes(req: RouteRequest): RouteCandidate[] {
     const { originNodeId, destinationNodeId, vehicle, departureHour } = req;
+    this.lastOmissionNote = null;
+    this.lastOmissionReason = null;
+
     if (originNodeId === destinationNodeId) {
       return [];
     }
 
     const profile = VEHICLE_PROFILES[vehicle];
+    const threshold = req.diversityThreshold ?? 0.75;
     const edgePenalties = new Map<string, number>();
 
     // 1. Primary search: LEAST_FLOOD on unpenalized graph
@@ -126,12 +155,15 @@ export class RoutingEngine {
     );
 
     if (!path1 || path1.length === 0) {
+      this.lastOmissionReason = 'disconnected';
+      this.lastOmissionNote = 'Không tìm thấy lộ trình liên thông giữa hai điểm đã chọn.';
       return [];
     }
 
     const distinctPaths: GraphRoadSegment[][] = [path1];
+    let omissionReason: CandidateOmissionReason | null = null;
 
-    // Helper: compute overlap ratio by segment length
+    // Helper: compute overlap ratio by segment length (Phase 4 Spec)
     const computeOverlap = (pA: GraphRoadSegment[], pB: GraphRoadSegment[]): number => {
       const setA = new Set(pA.map((s) => s.id));
       let overlapLen = 0;
@@ -161,13 +193,17 @@ export class RoutingEngine {
     );
 
     if (path2 && path2.length > 0) {
-      if (computeOverlap(path1, path2) < 0.80) {
+      if (computeOverlap(path1, path2) < threshold) {
         distinctPaths.push(path2);
         // Penalize path2 edges for path3 search
         for (const seg of path2) {
           edgePenalties.set(seg.id, (edgePenalties.get(seg.id) || 1) * 2.5);
         }
+      } else {
+        omissionReason = 'duplicate';
       }
+    } else {
+      omissionReason = 'no_distinct_alternative';
     }
 
     // 3. Tertiary search: Search with FASTEST on heavily penalized graph
@@ -182,11 +218,33 @@ export class RoutingEngine {
 
     if (path3 && path3.length > 0) {
       const overlapWithAll = distinctPaths.every(
-        (existing) => computeOverlap(existing, path3) < 0.80
+        (existing) => computeOverlap(existing, path3) < threshold
       );
       if (overlapWithAll) {
         distinctPaths.push(path3);
+      } else {
+        omissionReason = 'duplicate';
       }
+    } else {
+      if (!omissionReason) {
+        omissionReason = 'no_distinct_alternative';
+      }
+    }
+
+    // Generate user-facing omission note if fewer than 3 candidates found (Phase 5 Spec)
+    let omissionNote: string | undefined = undefined;
+    if (distinctPaths.length < 3) {
+      this.lastOmissionReason = omissionReason || 'no_distinct_alternative';
+      if (distinctPaths.length === 2) {
+        omissionNote =
+          departureHour > 0
+            ? `Chỉ tìm được 2 tuyến khác biệt tại mốc +${departureHour}h do tuyến nhanh nhất trùng lặp trên ${Math.round(threshold * 100)}% hành lang.`
+            : `Chỉ tìm được 2 tuyến khác biệt. Tuyến thứ 3 bị loại do trùng lặp trên ${Math.round(threshold * 100)}% hành lang di chuyển.`;
+      } else if (distinctPaths.length === 1) {
+        omissionNote =
+          'Chỉ tìm được 1 tuyến khả dụng duy nhất liên thông giữa hai điểm này theo điều kiện giao thông và ngập nước hiện tại.';
+      }
+      this.lastOmissionNote = omissionNote || null;
     }
 
     // 4. Evaluate and assign strategies to each distinct path
@@ -195,11 +253,17 @@ export class RoutingEngine {
     if (distinctPaths.length === 1) {
       // Exactly 1 physical corridor exists
       const cand = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
+      cand.omissionNote = omissionNote;
+      cand.omissionReason = this.lastOmissionReason || undefined;
       candidates.push(cand);
     } else if (distinctPaths.length === 2) {
       // 2 distinct corridors: Drier one is LEAST_FLOOD, faster one is BALANCED
       const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
       const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1);
+      cand1.omissionNote = omissionNote;
+      cand1.omissionReason = this.lastOmissionReason || undefined;
+      cand2.omissionNote = omissionNote;
+      cand2.omissionReason = this.lastOmissionReason || undefined;
       candidates.push(cand1, cand2);
     } else {
       // 3 distinct corridors: LEAST_FLOOD, BALANCED, FASTEST

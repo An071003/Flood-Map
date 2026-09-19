@@ -1,6 +1,8 @@
 import {
+  CompatibilityLevel,
   GraphRoadSegment,
   RouteCandidate,
+  RouteEvaluation,
   RouteStrategy,
   VehicleProfile,
 } from '../../types';
@@ -50,7 +52,7 @@ export function calculateSegmentCost(
     return timeCost + unknownCost;
   }
 
-  const depth = floodState.estimatedDepthCm ?? 0;
+  const depth = floodState.estimatedDepthCm;
   const depthPen = getDepthPenalty(depth, profile);
 
   let riskPen = 0;
@@ -111,7 +113,7 @@ export function evaluateRoute(
       unknownCount++;
     } else {
       knownMeters += seg.lengthMeters;
-      const depth = floodState.estimatedDepthCm ?? 0;
+      const depth = floodState.estimatedDepthCm;
       hasKnownDepth = true;
 
       if (maxDepthCm === undefined || depth > maxDepthCm) {
@@ -144,10 +146,13 @@ export function evaluateRoute(
     }
   }
 
-  const coveragePercent =
+  // Length-based coverage (Phase 1 Spec)
+  const unknownDistanceMeters = totalDistanceMeters - knownMeters;
+  const dataCoverage =
     totalDistanceMeters > 0
-      ? Math.round((knownMeters / totalDistanceMeters) * 100)
-      : 100;
+      ? knownMeters / totalDistanceMeters
+      : 0;
+  const coveragePercent = Math.round(dataCoverage * 100);
 
   // Realistic vehicle-specific delay caused by standing water & traffic crawling
   // Motorbikes must slow down drastically in 15cm+ or risk hydro-locking
@@ -171,6 +176,19 @@ export function evaluateRoute(
 
   const rawScore = 100 - floodPenalty - severeDeduction - warningDeduction - unknownDeduction - timeDeduction;
   const routeScore = Math.max(15, Math.min(99, Math.round(rawScore)));
+
+  // Compatibility Level Semantics (Phase 6 Spec)
+  // Primary qualitative rating: CAO / VỪA / THẤP / KHÔNG KHUYẾN NGHỊ
+  let compatibilityLevel: CompatibilityLevel = 'CAO';
+  if (routeScore >= 80) {
+    compatibilityLevel = 'CAO';
+  } else if (routeScore >= 55) {
+    compatibilityLevel = 'VỪA';
+  } else if (routeScore >= 35) {
+    compatibilityLevel = 'THẤP';
+  } else {
+    compatibilityLevel = 'KHÔNG KHUYẾN NGHỊ';
+  }
 
   // Recommendation State (Strictly adhere to NO safety guarantee wording)
   let recommendationState: RouteCandidate['recommendationState'] = 'favorable';
@@ -208,11 +226,13 @@ export function evaluateRoute(
     explanation = 'Lộ trình tối ưu theo khoảng cách và tốc độ lưu thông, có thể đi qua một số vùng đọng nước.';
   }
 
-  const evaluation = {
+  const evaluation: RouteEvaluation = {
     totalDistanceMeters,
     knownDistanceMeters: knownMeters,
-    dataCoverage: coveragePercent,
+    unknownDistanceMeters,
+    dataCoverage,
     unknownSegmentCount: unknownCount,
+    maxKnownDepthCm: hasKnownDepth ? maxDepthCm : undefined,
     maxEstimatedDepthCm: hasKnownDepth ? maxDepthCm : undefined,
     worstKnownSegmentId: worstSegment?.roadName,
   };
@@ -223,6 +243,7 @@ export function evaluateRoute(
     strategyLabel,
     vehicle: profile.type,
     routeScore,
+    compatibilityLevel,
     segments,
     totalDistanceMeters,
     totalDurationSeconds,

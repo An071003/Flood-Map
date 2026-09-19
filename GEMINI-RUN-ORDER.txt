@@ -1,8 +1,8 @@
-1. Read AGENT-V4.1.md
-2. Run REVIEW-V4.1-PROMPT.md
+1. Read AGENT-V4.2.md
+2. Run REVIEW-V4.2-PROMPT.md
 3. Do not code until root causes are explicit
-4. Run IMPLEMENT-V4.1-PROMPT.md
-5. Run ROUTE-ENGINE-QA-PROMPT.md
+4. Run IMPLEMENT-V4.2-PROMPT.md
+5. Run MOBILE-V4.2-QA-PROMPT.md
 6. Build + deploy
-7. Run RELEASE-V4.1-PROMPT.md against live URL
+7. Run RELEASE-V4.2-PROMPT.md
 8. Do not declare done while Critical/High fail

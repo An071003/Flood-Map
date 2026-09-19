@@ -15,6 +15,7 @@ export const RoutePlannerPanel: React.FC = () => {
   const selectedRouteCandidateId = useAppStore((s) => s.selectedRouteCandidateId);
   const setSelectedRouteCandidateId = useAppStore((s) => s.setSelectedRouteCandidateId);
   const timelineHour = useAppStore((s) => s.timelineHour);
+  const routeOmissionNote = useAppStore((s) => s.routeOmissionNote);
 
   type SheetState = 'collapsed' | 'half' | 'expanded';
   const [sheetState, setSheetState] = useState<SheetState>('expanded');
@@ -98,7 +99,7 @@ export const RoutePlannerPanel: React.FC = () => {
         <div>
           <div className="eyebrow-row">
             <span className="eyebrow">ĐỊNH TUYẾN THÔNG MINH</span>
-            <span className="sim-badge">V4 ENGINE</span>
+            <span className="sim-badge">V4.2 ENGINE</span>
           </div>
           <h2>Tìm đường tránh ngập</h2>
         </div>
@@ -214,6 +215,16 @@ export const RoutePlannerPanel: React.FC = () => {
         </span>
       </div>
 
+      {/* Candidate Omission Explanation (AGENT-V4.2 P1 & IMPLEMENT-V4.2 Phase 5) */}
+      {(routeOmissionNote || routeCandidates[0]?.omissionNote) && (
+        <div className="route-omission-banner" role="status" aria-live="polite">
+          <span className="omission-icon" aria-hidden="true">ℹ️</span>
+          <span className="omission-text">
+            {routeOmissionNote || routeCandidates[0]?.omissionNote}
+          </span>
+        </div>
+      )}
+
       {/* Route Candidates Result Cards */}
       <div className="route-candidates-list" role="region" aria-label="Danh sách phương án đường đi">
         {routeCandidates.length === 0 ? (
@@ -292,22 +303,46 @@ export const RoutePlannerPanel: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="route-metrics-row">
-                    <div className="score-stat" title={`Điểm phù hợp theo phương tiện ${selectedVehicle === 'motorbike' ? 'xe máy' : 'xe hơi'}`}>
-                      <span>Phù hợp {selectedVehicle === 'motorbike' ? '🏍️' : '🚗'}: </span>
-                      <b className={candidate.routeScore >= 75 ? 'text-good' : candidate.routeScore >= 50 ? 'text-warn' : 'text-danger'}>
-                        {candidate.routeScore}/100
-                      </b>
+                  {/* Vehicle Compatibility Semantics (IMPLEMENT-V4.2 Phase 6) */}
+                  <div
+                    className="compatibility-stat"
+                    title="Điểm này dùng để so sánh mức phù hợp giữa các tuyến theo mô hình, không phải xác suất an toàn."
+                  >
+                    <div className="compat-row">
+                      <span className="compat-label">Mức phù hợp:</span>
+                      <strong className={`compat-badge level-${candidate.compatibilityLevel.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}>
+                        {candidate.compatibilityLevel}
+                      </strong>
+                      <span className="compat-score">
+                        (Điểm mô hình: <b>{candidate.routeScore}/100</b>)
+                      </span>
                     </div>
+                  </div>
 
-                    <div className="coverage-stat">
-                      <span>Độ phủ dữ liệu: </span>
+                  {/* Coverage & Unknown Count (Always visible, even when 0) */}
+                  <div className="route-metrics-row">
+                    <div
+                      className="coverage-stat"
+                      title={`Đoạn có cảm biến: ${(candidate.evaluation.knownDistanceMeters / 1000).toFixed(1)} km / Tổng: ${(candidate.evaluation.totalDistanceMeters / 1000).toFixed(1)} km`}
+                    >
+                      <span>Độ phủ: </span>
                       <b className={candidate.coveragePercent < 80 ? 'text-warn' : 'text-good'}>
                         {candidate.coveragePercent}%
                       </b>
-                      {candidate.unknownCount > 0 && (
-                        <span className="unknown-pill" title="Đoạn đường chưa có cảm biến đo đạc thời gian thực">
-                          ({candidate.unknownCount} đoạn chưa đo)
+                    </div>
+
+                    <div className="unknown-count-stat" title="Số phân đoạn chưa có trạm cảm biến đo đạc">
+                      <span>Chưa đo: </span>
+                      <b className={candidate.unknownCount > 0 ? 'text-warn' : 'text-good'}>
+                        {candidate.unknownCount} đoạn
+                      </b>
+                      {candidate.unknownCount > 0 && candidate.evaluation.unknownDistanceMeters > 0 ? (
+                        <span className="unknown-pill">
+                          (~{candidate.evaluation.unknownDistanceMeters}m)
+                        </span>
+                      ) : (
+                        <span className="unknown-pill text-good">
+                          (100% cảm biến)
                         </span>
                       )}
                     </div>

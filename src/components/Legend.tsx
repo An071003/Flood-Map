@@ -15,6 +15,9 @@ export const Legend: React.FC = () => {
       <span>
         <i className="severe" aria-hidden="true"></i>Nghiêm trọng
       </span>
+      <span>
+        <i className="unknown" aria-hidden="true"></i>Chưa đủ dữ liệu
+      </span>
     </section>
   );
 };

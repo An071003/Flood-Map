@@ -266,6 +266,95 @@ describe('V4 Route Planner & Cost Engine (Spec: ROUTE-QA-PROMPT.md)', () => {
     });
   });
 
+  describe('V4.2 Credibility & Explainability Enhancements', () => {
+    it('calculates length-based coverage and unknownDistanceMeters accurately', () => {
+      const routes = engine.findRoutes({
+        originNodeId: 'node-doan-van-bo-ttt',
+        destinationNodeId: 'node-cau-kenh-te-q4',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      expect(routes.length).toBeGreaterThan(0);
+      const cand = routes[0];
+
+      // Route goes through seg-doan-van-bo-connector-unknown
+      expect(cand.unknownCount).toBeGreaterThan(0);
+      expect(cand.evaluation.unknownSegmentCount).toBe(cand.unknownCount);
+      expect(cand.evaluation.unknownDistanceMeters).toBeGreaterThan(0);
+      expect(cand.evaluation.totalDistanceMeters).toBe(
+        cand.evaluation.knownDistanceMeters + cand.evaluation.unknownDistanceMeters
+      );
+      expect(cand.evaluation.dataCoverage).toBeCloseTo(
+        cand.evaluation.knownDistanceMeters / cand.evaluation.totalDistanceMeters,
+        2
+      );
+      expect(cand.evaluation.dataCoverage).toBeLessThan(1.0);
+    });
+
+    it('records candidate omission explanation when fewer than 3 candidates are returned', () => {
+      const planResult = engine.findRoutesWithPlan({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 3,
+      });
+
+      if (planResult.candidates.length < 3) {
+        expect(planResult.omissionNote).toBeDefined();
+        expect(typeof planResult.omissionNote).toBe('string');
+        expect(planResult.omissionNote).toContain('Chỉ tìm được');
+        expect(planResult.omissionReason).toBeDefined();
+      }
+    });
+
+    it('assigns qualitative compatibilityLevel alongside routeScore', () => {
+      const routes = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'car',
+        departureHour: 0,
+      });
+
+      expect(routes.length).toBeGreaterThan(0);
+      for (const r of routes) {
+        expect(['CAO', 'VỪA', 'THẤP', 'KHÔNG KHUYẾN NGHỊ']).toContain(r.compatibilityLevel);
+        if (r.routeScore >= 80) {
+          expect(r.compatibilityLevel).toBe('CAO');
+        } else if (r.routeScore >= 55) {
+          expect(r.compatibilityLevel).toBe('VỪA');
+        } else if (r.routeScore >= 35) {
+          expect(r.compatibilityLevel).toBe('THẤP');
+        } else {
+          expect(r.compatibilityLevel).toBe('KHÔNG KHUYẾN NGHỊ');
+        }
+      }
+    });
+
+    it('respects configurable diversityThreshold', () => {
+      // Extremely strict threshold 0.1 should prune routes with minor overlap
+      const strictRoutes = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 0,
+        diversityThreshold: 0.1,
+      });
+
+      // Relaxed threshold 0.95 allows more overlap
+      const relaxedRoutes = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 0,
+        diversityThreshold: 0.95,
+      });
+
+      expect(strictRoutes.length).toBeGreaterThan(0);
+      expect(relaxedRoutes.length).toBeGreaterThanOrEqual(strictRoutes.length);
+    });
+  });
+
 });
 
 

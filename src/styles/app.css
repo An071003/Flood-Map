@@ -832,6 +832,41 @@ input:focus-visible,
 .legend .watch { background: var(--color-watch); }
 .legend .warning { background: var(--color-warning); }
 .legend .severe { background: var(--color-severe); }
+.legend .unknown {
+  background: #94a3b8;
+  border-radius: 1px;
+  width: 9px;
+  height: 3px;
+}
+
+/* Unknown Segment MapLibre Tooltip (AGENT-V4.2 P0 Unknown Map Visual) */
+.unknown-segment-popup .maplibregl-popup-content {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #f1f5f9;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.unknown-segment-popup .maplibregl-popup-tip {
+  border-top-color: rgba(15, 23, 42, 0.95);
+}
+.unknown-tooltip-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.unknown-tooltip-box strong {
+  font-size: 12px;
+  color: #e2e8f0;
+}
+.unknown-badge-pill {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 /* Timeline (Bottom Center) */
 .timeline {
@@ -1269,6 +1304,30 @@ input[type=range] {
   color: #38bdf8;
 }
 
+/* Candidate Omission Banner (AGENT-V4.2 P1 & IMPLEMENT-V4.2 Phase 5) */
+.route-omission-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(15, 30, 48, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-left: 4px solid #38bdf8;
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  font-size: 11px;
+  color: #e2e8f0;
+  line-height: 1.45;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.omission-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+.omission-text {
+  flex: 1;
+}
+
 .route-candidates-list {
   display: flex;
   flex-direction: column;
@@ -1381,10 +1440,74 @@ input[type=range] {
   color: #f87171;
 }
 
-.coverage-stat {
+/* Vehicle Compatibility Semantics (IMPLEMENT-V4.2 Phase 6) */
+.compatibility-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.07);
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+}
+.compat-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+  font-size: 11px;
+}
+.compat-label {
+  color: var(--text-muted);
+}
+.compat-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.compat-badge.level-cao {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+.compat-badge.level-v-a {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+}
+.compat-badge.level-th-p {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+.compat-badge.level-kh-ng-khuy-n-ngh- {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+.compat-score {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.compat-score b {
+  color: #e2e8f0;
+}
+
+.route-metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+}
+.coverage-stat,
+.unknown-count-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   color: var(--text-muted);
 }
 .text-good { color: #34d399; }
@@ -1392,6 +1515,9 @@ input[type=range] {
 .unknown-pill {
   color: #94a3b8;
   font-size: 10px;
+}
+.unknown-pill.text-good {
+  color: #34d399;
 }
 
 .route-advice-box {

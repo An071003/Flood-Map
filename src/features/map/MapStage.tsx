@@ -397,6 +397,37 @@ export const MapStage: React.FC = () => {
         map.getCanvas().style.cursor = '';
       });
 
+      // 4e. Tooltip for unknown segments (AGENT-V4.2 P0 Unknown map style: neutral, dashed, tooltip 'Chưa đủ dữ liệu')
+      const unknownPopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        className: 'unknown-segment-popup',
+        offset: 14,
+      });
+
+      const showUnknownPopup = (e: maplibregl.MapLayerMouseEvent) => {
+        if (e.features && e.features.length > 0) {
+          map.getCanvas().style.cursor = 'help';
+          const roadName = e.features[0].properties?.roadName || 'Đoạn đường';
+          unknownPopup
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `<div class="unknown-tooltip-box"><strong>${roadName}</strong><span class="unknown-badge-pill">Chưa đủ dữ liệu</span></div>`
+            )
+            .addTo(map);
+        }
+      };
+
+      map.on('mouseenter', 'hcmc-route-selected-unknown', showUnknownPopup);
+      map.on('mousemove', 'hcmc-route-selected-unknown', (e) => {
+        unknownPopup.setLngLat(e.lngLat);
+      });
+      map.on('mouseleave', 'hcmc-route-selected-unknown', () => {
+        map.getCanvas().style.cursor = '';
+        unknownPopup.remove();
+      });
+      map.on('click', 'hcmc-route-selected-unknown', showUnknownPopup);
+
       // 5. Three.js 3D Road Flood Ribbon Layer
       const threeLayer = new ThreeFloodLayer();
       threeLayerRef.current = threeLayer;
@@ -550,13 +581,15 @@ export const MapStage: React.FC = () => {
     // 2. Selected Route: segment by segment with flood properties
     const selFeatures = selectedCandidate.segments.map((seg) => {
       const floodState = seg.floodForecast[timelineHour] || seg.floodForecast[0];
+      const isUnknown = !floodState || floodState.status === 'unknown';
       return {
         type: 'Feature' as const,
         properties: {
           id: seg.id,
           roadName: seg.roadName,
-          riskLevel: floodState?.status === 'unknown' ? 'unknown' : floodState?.riskLevel || 'safe',
-          depthCm: floodState?.estimatedDepthCm ?? 0,
+          riskLevel: isUnknown ? 'unknown' : floodState.riskLevel || 'safe',
+          isUnknown,
+          depthCm: isUnknown ? -1 : floodState.estimatedDepthCm,
         },
         geometry: seg.geometry,
       };

@@ -22,6 +22,7 @@ interface AppState {
   selectedVehicle: VehicleType;
   routeCandidates: RouteCandidate[];
   selectedRouteCandidateId: string | null;
+  routeOmissionNote: string | null;
 
   // Actions
   setSelectedRoadId: (id: string | null) => void;
@@ -73,6 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedVehicle: 'motorbike',
   routeCandidates: [],
   selectedRouteCandidateId: null,
+  routeOmissionNote: null,
 
   setDataState: (dataState) => set({ dataState }),
   setSelectedRoadId: (id) => set({ selectedRoadId: id }),
@@ -130,12 +132,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   recalculateRoutes: () => {
     const { routeOriginId, routeDestinationId, selectedVehicle, timelineHour } = get();
     if (!routeOriginId || !routeDestinationId || routeOriginId === routeDestinationId) {
-      set({ routeCandidates: [], selectedRouteCandidateId: null });
+      set({ routeCandidates: [], selectedRouteCandidateId: null, routeOmissionNote: null });
       return;
     }
 
     const engine = RoutingEngine.getInstance();
-    const candidates = engine.findRoutes({
+    const planResult = engine.findRoutesWithPlan({
       originNodeId: routeOriginId,
       destinationNodeId: routeDestinationId,
       vehicle: selectedVehicle,
@@ -143,9 +145,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     set({
-      routeCandidates: candidates,
-      selectedRouteCandidateId: candidates[0]?.id || null,
+      routeCandidates: planResult.candidates,
+      selectedRouteCandidateId: planResult.candidates[0]?.id || null,
+      routeOmissionNote: planResult.omissionNote || null,
     });
   },
 }));
-

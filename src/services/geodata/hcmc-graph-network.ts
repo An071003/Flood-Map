@@ -1,4 +1,4 @@
-import { RoadNode, GraphRoadSegment } from '../../types';
+import { RoadNode, GraphRoadSegment, SegmentFloodState } from '../../types';
 
 // ---------------------------------------------------------------------------
 // HCMC Road Network Nodes (Key Intersections & Transport Hubs)
@@ -312,14 +312,15 @@ function makeForecast(
   depthProfile: Record<number, number>,
   status: 'known' | 'unknown' = 'known',
   confidence: 'high' | 'medium' | 'low' = 'high'
-): Record<number, { status: 'known' | 'unknown'; estimatedDepthCm?: number; riskLevel?: 'safe' | 'watch' | 'warning' | 'severe'; confidenceBand?: 'high' | 'medium' | 'low'; dataCompleteness?: number; forecastFor: string }> {
+): Record<number, SegmentFloodState> {
   const hours = [0, 1, 3, 6, 12, 24];
-  const res: Record<number, { status: 'known' | 'unknown'; estimatedDepthCm?: number; riskLevel?: 'safe' | 'watch' | 'warning' | 'severe'; confidenceBand?: 'high' | 'medium' | 'low'; dataCompleteness?: number; forecastFor: string }> = {};
+  const res: Record<number, SegmentFloodState> = {};
 
   for (const h of hours) {
     if (status === 'unknown') {
       res[h] = {
         status: 'unknown',
+        reason: 'missing_forecast',
         forecastFor: h === 0 ? 'Hiện tại (Chưa có dữ liệu)' : `+${h} giờ (Chưa có dữ liệu)`,
         confidenceBand: 'low',
         dataCompleteness: 0.15,
