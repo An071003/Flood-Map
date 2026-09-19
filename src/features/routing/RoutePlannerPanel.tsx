@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { useAppStore } from '../../stores/app-store';
-import { RoutingEngine } from '../../domain/routing/routing-engine';
+import { RoutingEngine, formatOmissionReason } from '../../domain/routing/routing-engine';
 
 export const RoutePlannerPanel: React.FC = () => {
   const isRoutePlannerOpen = useAppStore((s) => s.isRoutePlannerOpen);
@@ -16,6 +16,11 @@ export const RoutePlannerPanel: React.FC = () => {
   const setSelectedRouteCandidateId = useAppStore((s) => s.setSelectedRouteCandidateId);
   const timelineHour = useAppStore((s) => s.timelineHour);
   const routeOmissionNote = useAppStore((s) => s.routeOmissionNote);
+  const routeOmissionReason = useAppStore((s) => s.routeOmissionReason);
+  const requestedRouteCount = useAppStore((s) => s.requestedRouteCount);
+  const displayedRouteCount = useAppStore((s) => s.displayedRouteCount);
+  const qaUnknownFixtureEnabled = useAppStore((s) => s.qaUnknownFixtureEnabled);
+  const setQaUnknownFixtureEnabled = useAppStore((s) => s.setQaUnknownFixtureEnabled);
 
   type SheetState = 'collapsed' | 'half' | 'expanded';
   const [sheetState, setSheetState] = useState<SheetState>('expanded');
@@ -215,15 +220,31 @@ export const RoutePlannerPanel: React.FC = () => {
         </span>
       </div>
 
-      {/* Candidate Omission Explanation (AGENT-V4.2 P1 & IMPLEMENT-V4.2 Phase 5) */}
-      {(routeOmissionNote || routeCandidates[0]?.omissionNote) && (
+      {/* Candidate Omission Explanation (AGENT-V4.3 & IMPLEMENT-V4.3 Phase 4) */}
+      {(routeOmissionNote || (displayedRouteCount > 0 && displayedRouteCount < requestedRouteCount)) && (
         <div className="route-omission-banner" role="status" aria-live="polite">
           <span className="omission-icon" aria-hidden="true">ℹ️</span>
           <span className="omission-text">
-            {routeOmissionNote || routeCandidates[0]?.omissionNote}
+            {routeOmissionNote ||
+              (routeOmissionReason
+                ? formatOmissionReason(routeOmissionReason, displayedRouteCount)
+                : 'Chỉ tìm được số lượng phương án giới hạn.')}
           </span>
         </div>
       )}
+
+      {/* QA Mode UNKNOWN Fixture Switch (Production default OFF) */}
+      <div className="qa-fixture-strip">
+        <label className="qa-fixture-label" htmlFor="qa-fixture-toggle">
+          <input
+            id="qa-fixture-toggle"
+            type="checkbox"
+            checked={qaUnknownFixtureEnabled}
+            onChange={(e) => setQaUnknownFixtureEnabled(e.target.checked)}
+          />
+          <span>QA Test: Bật đoạn Chưa đủ dữ liệu (UNKNOWN fixture)</span>
+        </label>
+      </div>
 
       {/* Route Candidates Result Cards */}
       <div className="route-candidates-list" role="region" aria-label="Danh sách phương án đường đi">

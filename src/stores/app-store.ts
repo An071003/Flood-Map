@@ -1,6 +1,12 @@
 import { create } from 'zustand';
-import { ActiveLayers, DataState, RouteCandidate, VehicleType } from '../types';
+import { ActiveLayers, CandidateOmissionReason, DataState, RouteCandidate, VehicleType } from '../types';
 import { RoutingEngine } from '../domain/routing/routing-engine';
+
+export interface MapStateSnapshot {
+  selectedRoadId: string | null;
+  timelineHour: number;
+  activeLayers: ActiveLayers;
+}
 
 interface AppState {
   selectedRoadId: string | null;
@@ -23,6 +29,13 @@ interface AppState {
   routeCandidates: RouteCandidate[];
   selectedRouteCandidateId: string | null;
   routeOmissionNote: string | null;
+  routeOmissionReason: CandidateOmissionReason | null;
+  requestedRouteCount: number;
+  displayedRouteCount: number;
+
+  // V4.3 State Snapshot & QA Fixture
+  priorMapStateSnapshot: MapStateSnapshot | null;
+  qaUnknownFixtureEnabled: boolean;
 
   // Actions
   setSelectedRoadId: (id: string | null) => void;
@@ -44,6 +57,7 @@ interface AppState {
   setRouteDestinationId: (id: string | null) => void;
   setSelectedVehicle: (vehicle: VehicleType) => void;
   setSelectedRouteCandidateId: (id: string | null) => void;
+  setQaUnknownFixtureEnabled: (enabled: boolean) => void;
   recalculateRoutes: () => void;
 }
 
@@ -75,6 +89,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   routeCandidates: [],
   selectedRouteCandidateId: null,
   routeOmissionNote: null,
+  routeOmissionReason: null,
+  requestedRouteCount: 3,
+  displayedRouteCount: 0,
+
+  // V4.3 Initial Snapshot & QA
+  priorMapStateSnapshot: null,
+  qaUnknownFixtureEnabled: false,
 
   setDataState: (dataState) => set({ dataState }),
   setSelectedRoadId: (id) => set({ selectedRoadId: id }),
@@ -107,13 +128,48 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMobileInspectorExpanded: (expanded) => set({ isMobileInspectorExpanded: expanded }),
   triggerResetCamera: () => set((state) => ({ cameraResetNonce: state.cameraResetNonce + 1 })),
 
-  // V4 Actions
+  // V4 & V4.3 Route Planner Actions with Snapshot & Restore (Phase 5 Spec)
   setRoutePlannerOpen: (open) => {
-    set({ isRoutePlannerOpen: open });
+    const current = get();
     if (open) {
-      // Clear single road inspector to prevent clutter
-      set({ selectedRoadId: null });
+      // 1. Take a snapshot of prior map state before opening planner
+      const snapshot: MapStateSnapshot = {
+        selectedRoadId: current.selectedRoadId,
+        timelineHour: current.timelineHour,
+        activeLayers: { ...current.activeLayers },
+      };
+      set({
+        priorMapStateSnapshot: snapshot,
+        isRoutePlannerOpen: true,
+        selectedRoadId: null, // Clear single road inspector to prevent clutter
+      });
       get().recalculateRoutes();
+    } else {
+      // 2. Restore prior map state when closing route planner
+      const snapshot = current.priorMapStateSnapshot;
+      if (snapshot) {
+        set({
+          isRoutePlannerOpen: false,
+          selectedRoadId: snapshot.selectedRoadId,
+          timelineHour: snapshot.timelineHour,
+          activeLayers: { ...snapshot.activeLayers },
+          priorMapStateSnapshot: null,
+          routeCandidates: [],
+          selectedRouteCandidateId: null,
+          routeOmissionNote: null,
+          routeOmissionReason: null,
+          displayedRouteCount: 0,
+        });
+      } else {
+        set({
+          isRoutePlannerOpen: false,
+          routeCandidates: [],
+          selectedRouteCandidateId: null,
+          routeOmissionNote: null,
+          routeOmissionReason: null,
+          displayedRouteCount: 0,
+        });
+      }
     }
   },
   setRouteOriginId: (id) => {
@@ -129,10 +185,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().recalculateRoutes();
   },
   setSelectedRouteCandidateId: (id) => set({ selectedRouteCandidateId: id }),
+  setQaUnknownFixtureEnabled: (enabled) => {
+    set({ qaUnknownFixtureEnabled: enabled });
+    if (get().isRoutePlannerOpen) {
+      get().recalculateRoutes();
+    }
+  },
   recalculateRoutes: () => {
-    const { routeOriginId, routeDestinationId, selectedVehicle, timelineHour } = get();
+    const { routeOriginId, routeDestinationId, selectedVehicle, timelineHour, qaUnknownFixtureEnabled } = get();
     if (!routeOriginId || !routeDestinationId || routeOriginId === routeDestinationId) {
-      set({ routeCandidates: [], selectedRouteCandidateId: null, routeOmissionNote: null });
+      set({
+        routeCandidates: [],
+        selectedRouteCandidateId: null,
+        routeOmissionNote: null,
+        routeOmissionReason: null,
+        requestedRouteCount: 3,
+        displayedRouteCount: 0,
+      });
       return;
     }
 
@@ -142,12 +211,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       destinationNodeId: routeDestinationId,
       vehicle: selectedVehicle,
       departureHour: timelineHour,
+      qaUnknownFixture: qaUnknownFixtureEnabled,
     });
 
     set({
       routeCandidates: planResult.candidates,
       selectedRouteCandidateId: planResult.candidates[0]?.id || null,
       routeOmissionNote: planResult.omissionNote || null,
+      routeOmissionReason: planResult.omissionReason || null,
+      requestedRouteCount: planResult.requestedCount ?? 3,
+      displayedRouteCount: planResult.displayedCount ?? planResult.candidates.length,
     });
   },
 }));

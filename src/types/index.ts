@@ -273,6 +273,8 @@ export interface RoutePlanResult {
   candidates: RouteCandidate[];
   omissionReason?: CandidateOmissionReason;
   omissionNote?: string;
+  requestedCount?: number;
+  displayedCount?: number;
 }
 
 export interface RouteRequest {
@@ -281,5 +283,6 @@ export interface RouteRequest {
   vehicle: VehicleType;
   departureHour: number;
   diversityThreshold?: number;
+  qaUnknownFixture?: boolean;
 }
 

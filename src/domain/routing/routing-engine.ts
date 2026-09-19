@@ -6,6 +6,7 @@ import {
   RoutePlanResult,
   RouteRequest,
   RouteStrategy,
+  SegmentFloodState,
 } from '../../types';
 import { HCMC_GRAPH_SEGMENTS, HCMC_ROAD_NODES } from '../../services/geodata/hcmc-graph-network';
 import { VEHICLE_PROFILES } from './vehicle-profiles';
@@ -14,6 +15,70 @@ import { calculateSegmentCost, evaluateRoute } from './route-cost-engine';
 interface GraphEdge {
   segment: GraphRoadSegment;
   targetNodeId: string;
+}
+
+export const QA_UNKNOWN_ROUTE_SCENARIO = {
+  id: 'qa-unknown-route',
+  overrides: {
+    'seg-an-phu-xuan-thuy': {
+      status: 'unknown' as const,
+      reason: 'qa_fixture',
+    },
+    'seg-mai-chi-tho-1': {
+      status: 'unknown' as const,
+      reason: 'qa_fixture',
+    },
+    'seg-nhc-1': {
+      status: 'unknown' as const,
+      reason: 'qa_fixture',
+    },
+  },
+};
+
+export function applySegmentFixtureOverrides(
+  seg: GraphRoadSegment,
+  qaUnknown: boolean
+): GraphRoadSegment {
+  if (!qaUnknown) return seg;
+  const override = QA_UNKNOWN_ROUTE_SCENARIO.overrides[seg.id as keyof typeof QA_UNKNOWN_ROUTE_SCENARIO.overrides];
+  if (!override) return seg;
+
+  const newForecast: Record<number, SegmentFloodState> = {};
+  for (const h of [0, 1, 3, 6, 12, 24]) {
+    newForecast[h] = {
+      status: 'unknown',
+      reason: 'qa_fixture',
+      riskLevel: 'unknown',
+      forecastFor: h === 0 ? 'Hiện tại (Chưa có dữ liệu - QA)' : `+${h} giờ (Chưa có dữ liệu - QA)`,
+      confidenceBand: 'low',
+      dataCompleteness: 0.1,
+    };
+  }
+
+  return {
+    ...seg,
+    floodForecast: newForecast,
+  };
+}
+
+export function formatOmissionReason(
+  reason: CandidateOmissionReason,
+  displayedCount: number
+): string {
+  if (displayedCount === 0 || reason === 'disconnected') {
+    return 'Không tìm được kết nối hợp lệ cho một phương án.';
+  }
+  switch (reason) {
+    case 'duplicate':
+      return `Chỉ tìm được ${displayedCount} tuyến khác biệt. Không có tuyến khác đủ khác biệt để hiển thị.`;
+    case 'vehicle_blocked':
+      return `Chỉ tìm được ${displayedCount} tuyến khác biệt. Một tuyến bị loại do không phù hợp với phương tiện đã chọn.`;
+    case 'flood_blocked':
+      return `Chỉ tìm được ${displayedCount} tuyến khác biệt. Một tuyến bị loại do mức ngập dự báo quá cao.`;
+    case 'no_distinct_alternative':
+    default:
+      return `Chỉ tìm được ${displayedCount} tuyến khác biệt tại thời điểm này.`;
+  }
 }
 
 export class RoutingEngine {
@@ -124,6 +189,8 @@ export class RoutingEngine {
       candidates,
       omissionReason: this.lastOmissionReason || undefined,
       omissionNote: this.lastOmissionNote || undefined,
+      requestedCount: 3,
+      displayedCount: candidates.length,
     };
   }
 
@@ -133,6 +200,7 @@ export class RoutingEngine {
    */
   public findRoutes(req: RouteRequest): RouteCandidate[] {
     const { originNodeId, destinationNodeId, vehicle, departureHour } = req;
+    const isQaUnknown = Boolean(req.qaUnknownFixture);
     this.lastOmissionNote = null;
     this.lastOmissionReason = null;
 
@@ -151,17 +219,39 @@ export class RoutingEngine {
       'LEAST_FLOOD',
       departureHour,
       profile,
-      edgePenalties
+      edgePenalties,
+      isQaUnknown
     );
 
     if (!path1 || path1.length === 0) {
       this.lastOmissionReason = 'disconnected';
-      this.lastOmissionNote = 'Không tìm thấy lộ trình liên thông giữa hai điểm đã chọn.';
+      this.lastOmissionNote = formatOmissionReason('disconnected', 0);
       return [];
     }
 
     const distinctPaths: GraphRoadSegment[][] = [path1];
     let omissionReason: CandidateOmissionReason | null = null;
+
+    // Helper: check if a path is blocked by vehicle limits or extreme flood
+    const checkPathBlockage = (path: GraphRoadSegment[]): CandidateOmissionReason | null => {
+      let maxDepth = 0;
+      let hasSevere = false;
+      for (const s of path) {
+        const f = s.floodForecast[departureHour] || s.floodForecast[0];
+        if (f && f.status === 'known') {
+          if (f.estimatedDepthCm > maxDepth) maxDepth = f.estimatedDepthCm;
+          if (f.riskLevel === 'severe') hasSevere = true;
+        }
+      }
+      const impassableDepth = profile.type === 'motorbike' ? 25 : 35;
+      if (maxDepth >= 40 || (hasSevere && maxDepth >= 35)) {
+        return 'flood_blocked';
+      }
+      if (maxDepth >= impassableDepth) {
+        return 'vehicle_blocked';
+      }
+      return null;
+    };
 
     // Helper: compute overlap ratio by segment length (Phase 4 Spec)
     const computeOverlap = (pA: GraphRoadSegment[], pB: GraphRoadSegment[]): number => {
@@ -189,11 +279,15 @@ export class RoutingEngine {
       'BALANCED',
       departureHour,
       profile,
-      edgePenalties
+      edgePenalties,
+      isQaUnknown
     );
 
     if (path2 && path2.length > 0) {
-      if (computeOverlap(path1, path2) < threshold) {
+      const blockage = checkPathBlockage(path2);
+      if (blockage) {
+        omissionReason = blockage;
+      } else if (computeOverlap(path1, path2) < threshold) {
         distinctPaths.push(path2);
         // Penalize path2 edges for path3 search
         for (const seg of path2) {
@@ -213,17 +307,23 @@ export class RoutingEngine {
       'FASTEST',
       departureHour,
       profile,
-      edgePenalties
+      edgePenalties,
+      isQaUnknown
     );
 
     if (path3 && path3.length > 0) {
-      const overlapWithAll = distinctPaths.every(
-        (existing) => computeOverlap(existing, path3) < threshold
-      );
-      if (overlapWithAll) {
-        distinctPaths.push(path3);
+      const blockage = checkPathBlockage(path3);
+      if (blockage) {
+        omissionReason = omissionReason || blockage;
       } else {
-        omissionReason = 'duplicate';
+        const overlapWithAll = distinctPaths.every(
+          (existing) => computeOverlap(existing, path3) < threshold
+        );
+        if (overlapWithAll) {
+          distinctPaths.push(path3);
+        } else {
+          omissionReason = omissionReason || 'duplicate';
+        }
       }
     } else {
       if (!omissionReason) {
@@ -231,19 +331,11 @@ export class RoutingEngine {
       }
     }
 
-    // Generate user-facing omission note if fewer than 3 candidates found (Phase 5 Spec)
+    // Generate user-facing omission note if fewer than 3 candidates found (Phase 4 Spec)
     let omissionNote: string | undefined = undefined;
     if (distinctPaths.length < 3) {
       this.lastOmissionReason = omissionReason || 'no_distinct_alternative';
-      if (distinctPaths.length === 2) {
-        omissionNote =
-          departureHour > 0
-            ? `Chỉ tìm được 2 tuyến khác biệt tại mốc +${departureHour}h do tuyến nhanh nhất trùng lặp trên ${Math.round(threshold * 100)}% hành lang.`
-            : `Chỉ tìm được 2 tuyến khác biệt. Tuyến thứ 3 bị loại do trùng lặp trên ${Math.round(threshold * 100)}% hành lang di chuyển.`;
-      } else if (distinctPaths.length === 1) {
-        omissionNote =
-          'Chỉ tìm được 1 tuyến khả dụng duy nhất liên thông giữa hai điểm này theo điều kiện giao thông và ngập nước hiện tại.';
-      }
+      omissionNote = formatOmissionReason(this.lastOmissionReason, distinctPaths.length);
       this.lastOmissionNote = omissionNote || null;
     }
 
@@ -288,7 +380,8 @@ export class RoutingEngine {
     strategy: RouteStrategy,
     hour: number,
     profile = VEHICLE_PROFILES.motorbike,
-    edgePenalties = new Map<string, number>()
+    edgePenalties = new Map<string, number>(),
+    qaUnknown = false
   ): GraphRoadSegment[] | null {
     const distances = new Map<string, number>();
     const previous = new Map<
@@ -341,8 +434,9 @@ export class RoutingEngine {
       for (const edge of edges) {
         if (!unvisited.has(edge.targetNodeId)) continue;
 
-        const baseCost = calculateSegmentCost(edge.segment, profile, hour, strategy);
-        const diversityMultiplier = edgePenalties.get(edge.segment.id) || 1;
+        const seg = applySegmentFixtureOverrides(edge.segment, qaUnknown);
+        const baseCost = calculateSegmentCost(seg, profile, hour, strategy);
+        const diversityMultiplier = edgePenalties.get(seg.id) || 1;
         const edgeCost = baseCost * diversityMultiplier;
         const newDist = minDistance + edgeCost;
 
@@ -350,7 +444,7 @@ export class RoutingEngine {
           distances.set(edge.targetNodeId, newDist);
           previous.set(edge.targetNodeId, {
             nodeId: currentId,
-            segment: edge.segment,
+            segment: seg,
           });
         }
       }

@@ -1,8 +1,9 @@
-1. Read AGENT-V4.2.md
-2. Run REVIEW-V4.2-PROMPT.md
-3. Do not code until root causes are explicit
-4. Run IMPLEMENT-V4.2-PROMPT.md
-5. Run MOBILE-V4.2-QA-PROMPT.md
-6. Build + deploy
-7. Run RELEASE-V4.2-PROMPT.md
-8. Do not declare done while Critical/High fail
+1. Read AGENT-V4.3.md
+2. Run REVIEW-V4.3-PROMPT.md
+3. Do not code until map-state root cause is known
+4. Run IMPLEMENT-V4.3-PROMPT.md
+5. Run ROUTE-UNKNOWN-QA-PROMPT.md
+6. Run MAP-STATE-QA-PROMPT.md
+7. Build + deploy
+8. Run RELEASE-V4.3-PROMPT.md
+9. Do not declare done while Critical/High fail

@@ -361,7 +361,7 @@ export const MapStage: React.FC = () => {
         },
       });
 
-      // 4b. Unknown segments on selected route: dashed neutral styling (Spec V4.1)
+      // 4b. Unknown segments on selected route: dashed neutral styling (Spec V4.3)
       map.addLayer({
         id: 'hcmc-route-selected-unknown',
         type: 'line',
@@ -371,8 +371,8 @@ export const MapStage: React.FC = () => {
         paint: {
           'line-color': '#94a3b8',
           'line-width': 5,
-          'line-opacity': 0.95,
-          'line-dasharray': [2, 2],
+          'line-opacity': 0.78,
+          'line-dasharray': [3, 2],
         },
       });
 
@@ -397,7 +397,7 @@ export const MapStage: React.FC = () => {
         map.getCanvas().style.cursor = '';
       });
 
-      // 4e. Tooltip for unknown segments (AGENT-V4.2 P0 Unknown map style: neutral, dashed, tooltip 'Chưa đủ dữ liệu')
+      // 4e. Tooltip for unknown segments (AGENT-V4.3 P0 Unknown map style: neutral, dashed, tooltip 'Chưa đủ dữ liệu ngập cho đoạn này')
       const unknownPopup = new maplibregl.Popup({
         closeButton: false,
         closeOnClick: false,
@@ -412,7 +412,7 @@ export const MapStage: React.FC = () => {
           unknownPopup
             .setLngLat(e.lngLat)
             .setHTML(
-              `<div class="unknown-tooltip-box"><strong>${roadName}</strong><span class="unknown-badge-pill">Chưa đủ dữ liệu</span></div>`
+              `<div class="unknown-tooltip-box"><strong>${roadName}</strong><span class="unknown-badge-pill">Chưa đủ dữ liệu ngập cho đoạn này</span></div>`
             )
             .addTo(map);
         }
