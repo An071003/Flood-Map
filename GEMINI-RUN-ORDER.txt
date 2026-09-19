@@ -1,9 +1,10 @@
-1. Read AGENT-V5.md
-2. Run REVIEW-V5-PROMPT.md
-3. Do not code until current layer/search architecture is mapped
-4. Run IMPLEMENT-V5-PROMPT.md phase by phase
-5. Run SEARCH-GEOCODING-QA-PROMPT.md
-6. Run NAVIGATION-VISUAL-QA-PROMPT.md
-7. Build + deploy
-8. Run RELEASE-V5-PROMPT.md on live site
-9. Do not declare done while Critical/High fail
+1. Read AGENT-V5.1.md
+2. Run REVIEW-V5.1-PROMPT.md
+3. Do not implement until search precision + snapping flow are known
+4. Run IMPLEMENT-V5.1-PROMPT.md
+5. Run SEARCH-VALIDATION-PROMPT.md
+6. Run ROUTE-VISUAL-QA-PROMPT.md
+7. Run MOBILE-V5.1-QA-PROMPT.md
+8. Build + deploy
+9. Run RELEASE-V5.1-PROMPT.md
+10. Do not declare done while Critical/High fail

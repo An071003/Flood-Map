@@ -145,7 +145,7 @@ describe('V5 Navigation-First & Search Geocoding QA Suite', () => {
       expect(stateAfter.destinationPlace).toEqual(offGraphPlace);
       expect(stateAfter.routeDestinationId).toBe('node-hang-xanh');
       expect(stateAfter.snapWarningNote).toBe(
-        'Điểm đến nằm ngoài mạng đường được hỗ trợ. Tuyến được tính đến điểm gần nhất, cách đích 140 m.'
+        'Tuyến được tính đến điểm hỗ trợ gần nhất, cách vị trí đã chọn 140 m.'
       );
     });
   });

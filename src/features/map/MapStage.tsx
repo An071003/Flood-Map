@@ -42,6 +42,8 @@ export const MapStage: React.FC = () => {
   const interactionMode = useAppStore((s) => s.interactionMode);
   const routeCandidates = useAppStore((s) => s.routeCandidates);
   const selectedRouteCandidateId = useAppStore((s) => s.selectedRouteCandidateId);
+  const originSnapResult = useAppStore((s) => s.originSnapResult);
+  const destinationSnapResult = useAppStore((s) => s.destinationSnapResult);
 
   const weatherService = useMemo(() => RoadWeatherService.getInstance(), []);
   const snapshots = useMemo(
@@ -439,10 +441,32 @@ export const MapStage: React.FC = () => {
             '#2fd39a',
             'destination',
             '#ff5d73',
+            'actual-destination',
+            '#f59e0b',
+            'actual-origin',
+            '#10b981',
             '#38bdf8',
           ],
           'circle-stroke-width': 3,
           'circle-stroke-color': '#ffffff',
+        },
+      });
+
+      // 4a2. Snap approach connector lines (for off-graph origins/destinations)
+      map.addSource('hcmc-snap-connectors', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: 'hcmc-snap-connectors-line',
+        type: 'line',
+        source: 'hcmc-snap-connectors',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#f59e0b',
+          'line-width': 3,
+          'line-opacity': 0.85,
+          'line-dasharray': [2, 2],
         },
       });
 
@@ -652,13 +676,15 @@ export const MapStage: React.FC = () => {
     const altSource = map.getSource('hcmc-route-alternatives') as maplibregl.GeoJSONSource | undefined;
     const selSource = map.getSource('hcmc-route-selected') as maplibregl.GeoJSONSource | undefined;
     const endSource = map.getSource('hcmc-route-endpoints') as maplibregl.GeoJSONSource | undefined;
+    const connSource = map.getSource('hcmc-snap-connectors') as maplibregl.GeoJSONSource | undefined;
 
-    if (!altSource || !selSource || !endSource) return;
+    if (!altSource || !selSource || !endSource || !connSource) return;
 
     if (!isRoutePlannerOpen || routeCandidates.length === 0) {
       altSource.setData({ type: 'FeatureCollection', features: [] });
       selSource.setData({ type: 'FeatureCollection', features: [] });
       endSource.setData({ type: 'FeatureCollection', features: [] });
+      connSource.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
 
@@ -695,22 +721,75 @@ export const MapStage: React.FC = () => {
     });
     selSource.setData({ type: 'FeatureCollection', features: selFeatures });
 
-    // 3. Endpoints A & B
+    // 3. Endpoints & Snap Connector Lines
     const coords = selectedCandidate.geometry.coordinates;
-    const endpoints = [];
+    const endpoints: Array<{
+      type: 'Feature';
+      properties: { role: string; label: string };
+      geometry: { type: 'Point'; coordinates: [number, number] };
+    }> = [];
+
     if (coords.length > 0) {
       endpoints.push({
-        type: 'Feature' as const,
+        type: 'Feature',
         properties: { role: 'origin', label: 'A' },
-        geometry: { type: 'Point' as const, coordinates: coords[0] },
+        geometry: { type: 'Point', coordinates: coords[0] },
       });
       endpoints.push({
-        type: 'Feature' as const,
+        type: 'Feature',
         properties: { role: 'destination', label: 'B' },
-        geometry: { type: 'Point' as const, coordinates: coords[coords.length - 1] },
+        geometry: { type: 'Point', coordinates: coords[coords.length - 1] },
       });
     }
+
+    // 3b. Snap connector lines for off-graph origins or destinations (> 50m)
+    const connectorFeatures = [];
+    if (originSnapResult && originSnapResult.distanceMeters >= 50) {
+      connectorFeatures.push({
+        type: 'Feature' as const,
+        properties: { role: 'origin-connector', distanceMeters: originSnapResult.distanceMeters },
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: [
+            [originSnapResult.inputLng, originSnapResult.inputLat],
+            [originSnapResult.snappedLng, originSnapResult.snappedLat],
+          ],
+        },
+      });
+      endpoints.push({
+        type: 'Feature',
+        properties: { role: 'actual-origin', label: 'A*' },
+        geometry: {
+          type: 'Point',
+          coordinates: [originSnapResult.inputLng, originSnapResult.inputLat],
+        },
+      });
+    }
+
+    if (destinationSnapResult && destinationSnapResult.distanceMeters >= 50) {
+      connectorFeatures.push({
+        type: 'Feature' as const,
+        properties: { role: 'dest-connector', distanceMeters: destinationSnapResult.distanceMeters },
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: [
+            [destinationSnapResult.snappedLng, destinationSnapResult.snappedLat],
+            [destinationSnapResult.inputLng, destinationSnapResult.inputLat],
+          ],
+        },
+      });
+      endpoints.push({
+        type: 'Feature',
+        properties: { role: 'actual-destination', label: 'B*' },
+        geometry: {
+          type: 'Point',
+          coordinates: [destinationSnapResult.inputLng, destinationSnapResult.inputLat],
+        },
+      });
+    }
+
     endSource.setData({ type: 'FeatureCollection', features: endpoints });
+    connSource.setData({ type: 'FeatureCollection', features: connectorFeatures });
 
     // 4. Fit camera bounds
     if (coords.length >= 2) {
@@ -724,6 +803,20 @@ export const MapStage: React.FC = () => {
         if (lng > maxLng) maxLng = lng;
         if (lat < minLat) minLat = lat;
         if (lat > maxLat) maxLat = lat;
+      }
+
+      // Expand bounds to include off-graph actual pins
+      if (originSnapResult && originSnapResult.distanceMeters >= 50) {
+        minLng = Math.min(minLng, originSnapResult.inputLng);
+        maxLng = Math.max(maxLng, originSnapResult.inputLng);
+        minLat = Math.min(minLat, originSnapResult.inputLat);
+        maxLat = Math.max(maxLat, originSnapResult.inputLat);
+      }
+      if (destinationSnapResult && destinationSnapResult.distanceMeters >= 50) {
+        minLng = Math.min(minLng, destinationSnapResult.inputLng);
+        maxLng = Math.max(maxLng, destinationSnapResult.inputLng);
+        minLat = Math.min(minLat, destinationSnapResult.inputLat);
+        maxLat = Math.max(maxLat, destinationSnapResult.inputLat);
       }
 
       const isMobile = window.innerWidth <= 700;
@@ -741,7 +834,14 @@ export const MapStage: React.FC = () => {
         }
       );
     }
-  }, [isRoutePlannerOpen, routeCandidates, selectedRouteCandidateId, timelineHour]);
+  }, [
+    isRoutePlannerOpen,
+    routeCandidates,
+    selectedRouteCandidateId,
+    timelineHour,
+    originSnapResult,
+    destinationSnapResult,
+  ]);
 
   return (
 

@@ -272,12 +272,14 @@ export interface RouteCandidate {
 export type AppInteractionMode = 'browse' | 'road-selected' | 'route-planning';
 
 export type SearchPlaceType = 'address' | 'road' | 'alley' | 'poi' | 'intersection';
+export type SearchMatchQuality = 'exact' | 'approximate' | 'street-level' | 'poi';
 
 export interface SearchPlace {
   id: string;
   type: SearchPlaceType;
   label: string;
   name?: string;
+  secondaryLabel?: string;
   houseNumber?: string;
   street?: string;
   alley?: string;
@@ -285,11 +287,26 @@ export interface SearchPlace {
   district?: string;
   lng: number;
   lat: number;
+  matchQuality?: SearchMatchQuality;
+  source?: string;
   linkedRoadId?: string;
   routableSegmentId?: string;
   routableSnapDistanceMeters?: number;
   routableNodeId?: string;
   isOutsideGraph?: boolean;
+}
+
+export type RouteSnapStatus = 'exact' | 'near' | 'far' | 'unsupported';
+
+export interface RouteSnapResult {
+  inputLng: number;
+  inputLat: number;
+  snappedLng: number;
+  snappedLat: number;
+  nodeId: string;
+  segmentId?: string;
+  distanceMeters: number;
+  status: RouteSnapStatus;
 }
 
 export type FloodModelPreference = 'auto' | 'cautious' | 'standard';
@@ -313,5 +330,6 @@ export interface RouteRequest {
   preferredStrategy?: RouteStrategy;
   floodModelPreference?: FloodModelPreference;
   dataQualityPreference?: DataQualityPreference;
+  customMaxDepthCm?: number;
 }
 

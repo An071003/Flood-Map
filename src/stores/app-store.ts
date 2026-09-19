@@ -7,11 +7,15 @@ import {
   DataState,
   FloodModelPreference,
   RouteCandidate,
+  RouteSnapResult,
   SearchPlace,
   VehicleType,
 } from '../types';
 import { RoutingEngine } from '../domain/routing/routing-engine';
-import { snapCoordinatesToGraph } from '../services/geodata/hcmc-places-database';
+import {
+  snapCoordinatesToGraph,
+  snapCoordinatesToRoutableNetwork,
+} from '../services/geodata/hcmc-places-database';
 
 export interface MapStateSnapshot {
   selectedRoadId: string | null;
@@ -37,6 +41,8 @@ interface AppState {
   interactionMode: AppInteractionMode;
   originPlace: SearchPlace | null;
   destinationPlace: SearchPlace | null;
+  originSnapResult: RouteSnapResult | null;
+  destinationSnapResult: RouteSnapResult | null;
   snapWarningNote: string | null;
   floodModelPreference: FloodModelPreference;
   dataQualityPreference: DataQualityPreference;
@@ -116,6 +122,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   interactionMode: 'browse',
   originPlace: null,
   destinationPlace: null,
+  originSnapResult: null,
+  destinationSnapResult: null,
   snapWarningNote: null,
   floodModelPreference: 'auto',
   dataQualityPreference: 'all',
@@ -185,9 +193,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setOriginPlace: (place) => {
     set({ originPlace: place });
     if (place) {
-      const snap = snapCoordinatesToGraph(place.lng, place.lat);
-      const nodeId = place.routableNodeId || snap.nodeId;
-      set({ routeOriginId: nodeId });
+      const snapResult = snapCoordinatesToRoutableNetwork(place.lng, place.lat);
+      const nodeId = place.routableNodeId || snapResult.nodeId;
+      set({
+        routeOriginId: nodeId,
+        originSnapResult: snapResult,
+      });
+    } else {
+      set({ originSnapResult: null });
     }
     get().recalculateRoutes();
   },
@@ -195,21 +208,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDestinationPlace: (place) => {
     set({ destinationPlace: place });
     if (place) {
-      const snap = snapCoordinatesToGraph(place.lng, place.lat);
-      const nodeId = place.routableNodeId || snap.nodeId;
-      const dist = place.routableSnapDistanceMeters ?? snap.distanceMeters;
+      const snapResult = snapCoordinatesToRoutableNetwork(place.lng, place.lat);
+      const nodeId = place.routableNodeId || snapResult.nodeId;
+      const dist = place.routableSnapDistanceMeters ?? snapResult.distanceMeters;
 
       let snapWarning: string | null = null;
-      if (place.isOutsideGraph || dist > 50) {
-        snapWarning = `Điểm đến nằm ngoài mạng đường được hỗ trợ. Tuyến được tính đến điểm gần nhất, cách đích ${dist} m.`;
+      if (place.isOutsideGraph || dist > 50 || snapResult.status === 'far' || snapResult.status === 'unsupported') {
+        snapWarning = `Tuyến được tính đến điểm hỗ trợ gần nhất, cách vị trí đã chọn ${dist} m.`;
       }
 
       set({
         routeDestinationId: nodeId,
+        destinationSnapResult: snapResult,
         snapWarningNote: snapWarning,
       });
     } else {
-      set({ snapWarningNote: null });
+      set({
+        destinationSnapResult: null,
+        snapWarningNote: null,
+      });
     }
     get().recalculateRoutes();
   },
@@ -233,6 +250,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         name: 'Vị trí mặc định (Quận 1 · Bến Thành)',
         lng: 106.6983,
         lat: 10.7725,
+        matchQuality: 'poi',
         routableNodeId: 'node-ben-thanh',
         routableSnapDistanceMeters: 0,
         isOutsideGraph: false,
@@ -264,6 +282,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             name: 'Vị trí của tôi (GPS)',
             lng,
             lat,
+            matchQuality: 'poi',
             routableNodeId: snap.nodeId,
             routableSnapDistanceMeters: snap.distanceMeters,
             isOutsideGraph: snap.distanceMeters > 50,
@@ -291,6 +310,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             name: 'Vị trí mặc định (Quận 1 · Bến Thành)',
             lng: 106.6983,
             lat: 10.7725,
+            matchQuality: 'poi',
             routableNodeId: 'node-ben-thanh',
             routableSnapDistanceMeters: 0,
             isOutsideGraph: false,

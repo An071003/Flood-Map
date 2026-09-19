@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useAppStore } from '../stores/app-store';
 import { RoadWeatherService } from '../services/road-weather-service';
 import { searchPlaces } from '../services/geodata/hcmc-places-database';
-import { SearchPlace, SearchPlaceType } from '../types';
+import { SearchPlace, SearchPlaceType, SearchMatchQuality } from '../types';
 
 export const SearchModal: React.FC = () => {
   const isSearchOpen = useAppStore((s) => s.isSearchOpen);
@@ -20,6 +20,22 @@ export const SearchModal: React.FC = () => {
   const timelineHour = useAppStore((s) => s.timelineHour);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState(searchQuery);
+
+  // Synchronize local input if external store query changes
+  useEffect(() => {
+    setInputValue(searchQuery);
+  }, [searchQuery]);
+
+  // V5.1 200ms Debounce for search execution
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue !== searchQuery) {
+        setSearchQuery(inputValue);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [inputValue, searchQuery, setSearchQuery]);
 
   const weatherService = useMemo(() => RoadWeatherService.getInstance(), []);
   const snapshots = useMemo(
@@ -55,7 +71,7 @@ export const SearchModal: React.FC = () => {
     }
   }, [isSearchOpen]);
 
-  // V5 Multi-category place search (Addresses, Alleys, Roads, POIs, Intersections)
+  // V5/V5.1 Multi-category place search (Addresses, Alleys, Roads, POIs, Intersections)
   const searchResults: SearchPlace[] = useMemo(() => {
     return searchPlaces(searchQuery);
   }, [searchQuery]);
@@ -67,7 +83,7 @@ export const SearchModal: React.FC = () => {
     if (place.linkedRoadId) {
       setSelectedRoadId(place.linkedRoadId);
     }
-    setPersistedSearchQuery(searchQuery.trim() || place.name || place.label);
+    setPersistedSearchQuery(inputValue.trim() || place.name || place.label);
     setSearchOpen(false);
   };
 
@@ -109,6 +125,21 @@ export const SearchModal: React.FC = () => {
     }
   };
 
+  const renderQualityBadge = (quality?: SearchMatchQuality) => {
+    switch (quality) {
+      case 'exact':
+        return <span className="quality-badge exact" title="Tọa độ xác thực từ cơ sở dữ liệu mốc">Chính xác</span>;
+      case 'approximate':
+        return <span className="quality-badge approx" title="Vị trí ước lượng (chưa hỗ trợ số nhà chi tiết)">Ước lượng</span>;
+      case 'street-level':
+        return <span className="quality-badge street" title="Định vị theo tim đường">Tuyến đường</span>;
+      case 'poi':
+        return <span className="quality-badge poi" title="Địa điểm công cộng xác thực">Địa điểm</span>;
+      default:
+        return null;
+    }
+  };
+
   if (!isSearchOpen) return null;
 
   return (
@@ -127,23 +158,29 @@ export const SearchModal: React.FC = () => {
             type="text"
             className="search-modal-input"
             placeholder="Tìm địa chỉ, số nhà, hẻm, địa điểm..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchResults.length > 0) {
-                const first = searchResults[0];
-                if (first.linkedRoadId) {
-                  handleViewFlood(first);
-                } else {
-                  handleSetDestination(first);
+              if (e.key === 'Enter') {
+                const results = searchPlaces(inputValue);
+                if (results.length > 0) {
+                  const first = results[0];
+                  if (first.linkedRoadId) {
+                    handleViewFlood(first);
+                  } else {
+                    handleSetDestination(first);
+                  }
                 }
               }
             }}
           />
-          {searchQuery && (
+          {inputValue && (
             <button
               className="clear-search-btn"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setInputValue('');
+                setSearchQuery('');
+              }}
               title="Xóa từ khóa"
             >
               ×
@@ -172,7 +209,7 @@ export const SearchModal: React.FC = () => {
         <div className="search-modal-results">
           {searchResults.length === 0 ? (
             <div className="search-empty-state">
-              Không tìm thấy địa điểm hoặc số nhà khớp với "{searchQuery}". Hãy thử "123 Nguyễn Xí", "Hẻm 48 Điện Biên Phủ", "Bến Thành", hoặc "Thảo Điền".
+              Không tìm thấy địa điểm hoặc số nhà khớp với "{inputValue || searchQuery}". Hãy thử "123 Nguyễn Xí", "Hẻm 48 Điện Biên Phủ", "Bến Thành", hoặc "Thảo Điền".
             </div>
           ) : (
             searchResults.map((place) => {
@@ -196,6 +233,7 @@ export const SearchModal: React.FC = () => {
                   <div className="result-main">
                     <div className="result-title-row">
                       {renderTypeBadge(place.type)}
+                      {renderQualityBadge(place.matchQuality)}
                       <strong className="result-name">{place.name || place.label}</strong>
                       {hasSnapWarning && (
                         <span
@@ -206,6 +244,9 @@ export const SearchModal: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    {place.secondaryLabel && (
+                      <div className="result-secondary-label">{place.secondaryLabel}</div>
+                    )}
                     <span className="result-district">{place.district}</span>
                   </div>
 

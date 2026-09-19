@@ -1,0 +1,11 @@
+{
+  "query": "123 Nguyễn Hữu Cảnh",
+  "result": {
+    "type": "address",
+    "label": "123 Nguyễn Hữu Cảnh",
+    "matchQuality": "exact",
+    "lng": null,
+    "lat": null,
+    "note": "Schema example only; do not invent production coordinates."
+  }
+}

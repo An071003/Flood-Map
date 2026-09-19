@@ -160,7 +160,30 @@ export const RoutePlannerPanel: React.FC = () => {
         {originPlace && (
           <div className="place-source-tag origin-tag">
             <span className="tag-icon">📍</span>
-            <span>Địa chỉ: <b>{originPlace.name || originPlace.label}</b></span>
+            <div className="place-tag-body">
+              <div className="place-tag-title-row">
+                <span>Điểm đi: <b>{originPlace.name || originPlace.label}</b></span>
+                {originPlace.matchQuality && (
+                  <span className={`quality-badge ${originPlace.matchQuality}`}>
+                    {originPlace.matchQuality === 'exact'
+                      ? 'Chính xác'
+                      : originPlace.matchQuality === 'approximate'
+                      ? 'Ước lượng'
+                      : originPlace.matchQuality === 'poi'
+                      ? 'Địa điểm'
+                      : 'Tuyến đường'}
+                  </span>
+                )}
+              </div>
+              {originPlace.secondaryLabel && (
+                <div className="place-secondary-text">{originPlace.secondaryLabel}</div>
+              )}
+              {originPlace.routableSnapDistanceMeters && originPlace.routableSnapDistanceMeters > 50 && (
+                <div className="place-snap-text">
+                  Cách điểm bắt đầu định tuyến {originPlace.routableSnapDistanceMeters}m
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -204,7 +227,30 @@ export const RoutePlannerPanel: React.FC = () => {
         {destinationPlace && (
           <div className="place-source-tag dest-tag">
             <span className="tag-icon">🏁</span>
-            <span>Điểm đến: <b>{destinationPlace.name || destinationPlace.label}</b></span>
+            <div className="place-tag-body">
+              <div className="place-tag-title-row">
+                <span>Điểm đến: <b>{destinationPlace.name || destinationPlace.label}</b></span>
+                {destinationPlace.matchQuality && (
+                  <span className={`quality-badge ${destinationPlace.matchQuality}`}>
+                    {destinationPlace.matchQuality === 'exact'
+                      ? 'Chính xác'
+                      : destinationPlace.matchQuality === 'approximate'
+                      ? 'Ước lượng'
+                      : destinationPlace.matchQuality === 'poi'
+                      ? 'Địa điểm'
+                      : 'Tuyến đường'}
+                  </span>
+                )}
+              </div>
+              {destinationPlace.secondaryLabel && (
+                <div className="place-secondary-text">{destinationPlace.secondaryLabel}</div>
+              )}
+              {destinationPlace.routableSnapDistanceMeters && destinationPlace.routableSnapDistanceMeters > 50 && (
+                <div className="place-snap-text">
+                  Cách điểm kết thúc định tuyến {destinationPlace.routableSnapDistanceMeters}m
+                </div>
+              )}
+            </div>
           </div>
         )}
 

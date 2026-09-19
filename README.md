@@ -1,18 +1,14 @@
-# Flood Map HCMC — V5 Navigation UX
+# Flood Map HCMC — V5.1 Search + Navigation Optimization
 
-V5 đổi product interaction từ flood-dashboard sang navigation-first flood assistant.
+Tập trung: search thật, snapping minh bạch, route visual rõ, filter hoạt động thật, UNKNOWN không regression, mobile test thật.
 
-## Mục tiêu
-1. Map mặc định sạch, không tô màu ngập trên toàn bộ road.
-2. Chỉ khi chọn đường mới hiện dự đoán/evaluation của đường đó.
-3. Khi định tuyến, chỉ route candidates được nhấn mạnh; selected route hiển thị flood theo segment.
-4. Search hỗ trợ road / address / số nhà / hẻm / POI / intersection / current location.
-5. Route filters gồm vehicle / forecast / strategy / flood preference / data quality.
+Run order:
+1. AGENT-V5.1.md
+2. REVIEW-V5.1-PROMPT.md
+3. IMPLEMENT-V5.1-PROMPT.md
+4. SEARCH-VALIDATION-PROMPT.md
+5. ROUTE-VISUAL-QA-PROMPT.md
+6. MOBILE-V5.1-QA-PROMPT.md
+7. RELEASE-V5.1-PROMPT.md
 
-## Run order
-1. `AGENT-V5.md`
-2. `REVIEW-V5-PROMPT.md`
-3. `IMPLEMENT-V5-PROMPT.md`
-4. `SEARCH-GEOCODING-QA-PROMPT.md`
-5. `NAVIGATION-VISUAL-QA-PROMPT.md`
-6. `RELEASE-V5-PROMPT.md`
+Không fake house number, alley routing, hoặc silent-snap xa.

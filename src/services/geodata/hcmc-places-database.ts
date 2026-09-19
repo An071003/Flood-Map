@@ -1,4 +1,9 @@
-import { SearchPlace } from '../../types';
+import {
+  SearchPlace,
+  SearchMatchQuality,
+  RouteSnapResult,
+  RouteSnapStatus,
+} from '../../types';
 import { HCMC_ROAD_NODES } from './hcmc-graph-network';
 import { MAJOR_HCMC_ROADS } from './hcmc-roads';
 
@@ -17,9 +22,19 @@ export function normalizeVietnamese(str: string): string {
 }
 
 /**
+ * Strips common administrative prefixes so queries like "đường Nguyễn Hữu Cảnh" match "Nguyễn Hữu Cảnh".
+ */
+export function stripVietnamesePrefixes(str: string): string {
+  return str
+    .replace(/^(đường|duong|phố|pho|hẻm|hem|ngõ|ngo|đại lộ|dai lo|quốc lộ|quoc lo|xa lộ|xa lo)\s+/i, '')
+    .replace(/^(quận|quan|q\.|phường|phuong|p\.|thành phố|thanh pho|tp\.|tp)\s+/i, '')
+    .trim();
+}
+
+/**
  * Curated database of prominent HCMC locations, addresses, alleys, POIs, and intersections.
  */
-export const HCMC_CURATED_PLACES: SearchPlace[] = [
+const HCMC_RAW_CURATED_PLACES: Omit<SearchPlace, 'matchQuality'>[] = [
   // --- 1. POIs (Prominent landmarks) ---
   {
     id: 'poi-ben-thanh',
@@ -276,12 +291,14 @@ export const HCMC_CURATED_PLACES: SearchPlace[] = [
     id: 'addr-123-nhc',
     type: 'address',
     label: '123 Nguyễn Hữu Cảnh',
+    name: 'Gần 123 Nguyễn Hữu Cảnh (ước lượng)',
     houseNumber: '123',
     street: 'Nguyễn Hữu Cảnh',
     ward: 'Phường 22',
     district: 'Bình Thạnh',
     lng: 106.7145,
     lat: 10.7925,
+    linkedRoadId: 'road-nguyen-huu-canh',
     routableNodeId: 'node-nhc-thu-thiem',
     routableSnapDistanceMeters: 75,
     isOutsideGraph: true,
@@ -290,12 +307,14 @@ export const HCMC_CURATED_PLACES: SearchPlace[] = [
     id: 'addr-195-dbp',
     type: 'address',
     label: '195 Điện Biên Phủ',
+    name: 'Gần 195 Điện Biên Phủ (ước lượng)',
     houseNumber: '195',
     street: 'Điện Biên Phủ',
     ward: 'Phường 15',
     district: 'Bình Thạnh',
     lng: 106.7095,
     lat: 10.7995,
+    linkedRoadId: 'road-dien-bien-phu',
     routableNodeId: 'node-hang-xanh',
     routableSnapDistanceMeters: 60,
     isOutsideGraph: true,
@@ -304,12 +323,14 @@ export const HCMC_CURATED_PLACES: SearchPlace[] = [
     id: 'addr-26-uvk',
     type: 'address',
     label: '26 Ung Văn Khiêm',
+    name: 'Gần 26 Ung Văn Khiêm (ước lượng)',
     houseNumber: '26',
     street: 'Ung Văn Khiêm',
     ward: 'Phường 25',
     district: 'Bình Thạnh',
     lng: 106.716,
     lat: 10.806,
+    linkedRoadId: 'road-ung-van-khiem',
     routableNodeId: 'node-ung-van-khiem-mid',
     routableSnapDistanceMeters: 45,
     isOutsideGraph: false,
@@ -318,12 +339,14 @@ export const HCMC_CURATED_PLACES: SearchPlace[] = [
     id: 'addr-88-xuan-thuy',
     type: 'address',
     label: '88 Xuân Thủy',
+    name: 'Gần 88 Xuân Thủy (ước lượng)',
     houseNumber: '88',
     street: 'Xuân Thủy',
     ward: 'Thảo Điền',
     district: 'TP. Thủ Đức',
     lng: 106.739,
     lat: 10.812,
+    linkedRoadId: 'road-xuan-thuy',
     routableNodeId: 'node-xuan-thuy-thao-dien',
     routableSnapDistanceMeters: 90,
     isOutsideGraph: true,
@@ -334,6 +357,8 @@ export const HCMC_CURATED_PLACES: SearchPlace[] = [
     id: 'alley-123-45-nguyen-xi',
     type: 'alley',
     label: '123/45 Nguyễn Xí',
+    name: '123/45 Nguyễn Xí (ước lượng)',
+    houseNumber: '123/45',
     alley: 'Hẻm 123/45',
     street: 'Nguyễn Xí',
     ward: 'Phường 26',
@@ -374,14 +399,21 @@ export const HCMC_CURATED_PLACES: SearchPlace[] = [
   },
 ];
 
+export const SNAP_THRESHOLDS = {
+  EXACT_MAX_METERS: 25,
+  NEAR_MAX_METERS: 80,
+  FAR_MAX_METERS: 300,
+  UNSUPPORTED_MAX_METERS: 1500,
+} as const;
+
 /**
- * Snaps a geographic coordinate (lng, lat) to the nearest supported node in HCMC_ROAD_NODES.
- * Returns the nearest node ID and haversine distance in meters.
+ * Snaps coordinates (lng, lat) to the nearest supported node in HCMC_ROAD_NODES.
+ * Returns a complete RouteSnapResult including input, snapped point, distance, and status.
  */
-export function snapCoordinatesToGraph(
+export function snapCoordinatesToRoutableNetwork(
   lng: number,
   lat: number
-): { nodeId: string; nodeName: string; distanceMeters: number } {
+): RouteSnapResult {
   let bestNode = HCMC_ROAD_NODES[0];
   let minDistance = Infinity;
 
@@ -403,25 +435,90 @@ export function snapCoordinatesToGraph(
     }
   }
 
+  const distanceMeters = Math.round(minDistance);
+  let status: RouteSnapStatus = 'near';
+  if (distanceMeters <= SNAP_THRESHOLDS.EXACT_MAX_METERS) {
+    status = 'exact';
+  } else if (distanceMeters <= SNAP_THRESHOLDS.NEAR_MAX_METERS) {
+    status = 'near';
+  } else if (distanceMeters <= SNAP_THRESHOLDS.FAR_MAX_METERS) {
+    status = 'far';
+  } else {
+    status = 'unsupported';
+  }
+
   return {
+    inputLng: lng,
+    inputLat: lat,
+    snappedLng: bestNode.lng,
+    snappedLat: bestNode.lat,
     nodeId: bestNode.id,
-    nodeName: bestNode.name,
-    distanceMeters: Math.round(minDistance),
+    distanceMeters,
+    status,
   };
 }
 
+/**
+ * Snaps a geographic coordinate (lng, lat) to the nearest supported node in HCMC_ROAD_NODES.
+ * Returns the nearest node ID and haversine distance in meters.
+ */
+export function snapCoordinatesToGraph(
+  lng: number,
+  lat: number
+): { nodeId: string; nodeName: string; distanceMeters: number } {
+  const result = snapCoordinatesToRoutableNetwork(lng, lat);
+  const node = HCMC_ROAD_NODES.find((n) => n.id === result.nodeId) || HCMC_ROAD_NODES[0];
+  return {
+    nodeId: result.nodeId,
+    nodeName: node.name,
+    distanceMeters: result.distanceMeters,
+  };
+}
+
+export const HCMC_CURATED_PLACES: SearchPlace[] = HCMC_RAW_CURATED_PLACES.map((p) => {
+  let quality: SearchMatchQuality = 'poi';
+  let secLabel = p.secondaryLabel;
+  if (p.type === 'poi') {
+    quality = 'poi';
+    secLabel = secLabel || 'Địa điểm nổi bật';
+  } else if (p.type === 'intersection') {
+    quality = 'poi';
+    secLabel = secLabel || 'Giao lộ trọng điểm';
+  } else if (p.type === 'road') {
+    quality = 'street-level';
+    secLabel = secLabel || 'Tuyến đường giao thông';
+  } else if (p.type === 'address') {
+    quality = 'approximate';
+    secLabel = secLabel || 'Địa chỉ ước lượng theo tim đường (chưa hỗ trợ số nhà chi tiết)';
+  } else if (p.type === 'alley') {
+    quality = 'approximate';
+    secLabel = secLabel || 'Vị trí ước lượng vị trí đầu hẻm (ngoài mạng đường xe chính)';
+  }
+
+  return {
+    ...p,
+    name: p.name || p.label,
+    matchQuality: quality,
+    secondaryLabel: secLabel,
+    source: 'curated-hcmc-database',
+  };
+});
+
 export const HCMC_ROAD_SEARCH_PLACES: SearchPlace[] = (MAJOR_HCMC_ROADS || []).map((r) => {
-  const snap = snapCoordinatesToGraph(r.properties.anchorPoint[0], r.properties.anchorPoint[1]);
+  const snap = snapCoordinatesToRoutableNetwork(r.properties.anchorPoint[0], r.properties.anchorPoint[1]);
   return {
     id: `road-place-${r.id}`,
     type: 'road',
     label: r.properties.roadName,
     name: r.properties.roadName,
+    secondaryLabel: `${r.properties.roadName} · Định vị theo tim đường`,
     street: r.properties.roadName,
     district: r.properties.district,
     lng: r.properties.anchorPoint[0],
     lat: r.properties.anchorPoint[1],
     linkedRoadId: r.id,
+    matchQuality: 'street-level',
+    source: 'osm-major-roads',
     routableNodeId: snap.nodeId,
     routableSnapDistanceMeters: snap.distanceMeters,
     isOutsideGraph: false,
@@ -430,20 +527,18 @@ export const HCMC_ROAD_SEARCH_PLACES: SearchPlace[] = (MAJOR_HCMC_ROADS || []).m
 
 export const ALL_HCMC_PLACES: SearchPlace[] = [
   ...HCMC_ROAD_SEARCH_PLACES,
-  ...HCMC_CURATED_PLACES.map((p) => ({
-    ...p,
-    name: p.label,
-  })),
+  ...HCMC_CURATED_PLACES,
 ];
 
 /**
  * Dynamic parser for addresses and alley numbers (e.g. "123 Nguyễn Hữu Cảnh", "123/45 Nguyễn Xí").
  * Synthesizes an accurate place record with graph snapping if not already in curated DB.
+ * Honors V5.1 rule: Never claim exact for unverified street interpolation.
  */
 export function parseAddressQuery(query: string): SearchPlace | null {
   const q = query.trim();
 
-  // Check for alley patterns (e.g. "123/45 ...", "hem 48 ...")
+  // 1. Check for alley patterns (e.g. "123/45 ...", "hem 48 ...")
   const alleyMatch = q.match(/^(\d+\/\d+|\d+[A-Za-z]?\/\d+|hẻm\s+\d+|hem\s+\d+)\s+(.+)$/i);
   if (alleyMatch) {
     const alleyPart = alleyMatch[1];
@@ -451,23 +546,27 @@ export function parseAddressQuery(query: string): SearchPlace | null {
     const matchedRoad = ALL_HCMC_PLACES.find(
       (p) => p.type === 'road' && (
         normalizeVietnamese(p.street || p.label).includes(normalizeVietnamese(streetPart)) ||
-        normalizeVietnamese(streetPart).includes(normalizeVietnamese(p.street || p.label))
+        normalizeVietnamese(streetPart).includes(normalizeVietnamese(p.street || p.label)) ||
+        stripVietnamesePrefixes(p.street || p.label).includes(stripVietnamesePrefixes(streetPart))
       )
     );
 
     if (matchedRoad) {
-      const snap = snapCoordinatesToGraph(matchedRoad.lng + 0.0015, matchedRoad.lat + 0.001);
+      const snap = snapCoordinatesToRoutableNetwork(matchedRoad.lng + 0.0015, matchedRoad.lat + 0.001);
       return {
         id: `dynamic-alley-${Date.now()}`,
         type: 'alley',
         label: `${alleyPart} ${matchedRoad.street}`,
         name: `${alleyPart} ${matchedRoad.street}`,
+        secondaryLabel: 'Không tìm thấy chính xác số hẻm; hiển thị điểm gần nhất.',
         alley: alleyPart,
         street: matchedRoad.street,
         ward: matchedRoad.ward,
         district: matchedRoad.district,
         lng: matchedRoad.lng + 0.0015,
         lat: matchedRoad.lat + 0.001,
+        matchQuality: 'approximate',
+        source: 'dynamic-alley-parser',
         routableNodeId: snap.nodeId,
         routableSnapDistanceMeters: Math.max(120, snap.distanceMeters),
         isOutsideGraph: true,
@@ -475,7 +574,7 @@ export function parseAddressQuery(query: string): SearchPlace | null {
     }
   }
 
-  // Check for house number patterns (e.g. "123 Nguyễn Hữu Cảnh")
+  // 2. Check for house number patterns (e.g. "123 Nguyễn Hữu Cảnh")
   const houseMatch = q.match(/^(\d+[A-Za-z]?)\s+(.+)$/);
   if (houseMatch) {
     const numPart = houseMatch[1];
@@ -483,23 +582,27 @@ export function parseAddressQuery(query: string): SearchPlace | null {
     const matchedRoad = ALL_HCMC_PLACES.find(
       (p) => p.type === 'road' && (
         normalizeVietnamese(p.street || p.label).includes(normalizeVietnamese(streetPart)) ||
-        normalizeVietnamese(streetPart).includes(normalizeVietnamese(p.street || p.label))
+        normalizeVietnamese(streetPart).includes(normalizeVietnamese(p.street || p.label)) ||
+        stripVietnamesePrefixes(p.street || p.label).includes(stripVietnamesePrefixes(streetPart))
       )
     );
 
     if (matchedRoad) {
-      const snap = snapCoordinatesToGraph(matchedRoad.lng + 0.0008, matchedRoad.lat + 0.0005);
+      const snap = snapCoordinatesToRoutableNetwork(matchedRoad.lng + 0.0008, matchedRoad.lat + 0.0005);
       return {
         id: `dynamic-addr-${Date.now()}`,
         type: 'address',
-        label: `${numPart} ${matchedRoad.street}`,
-        name: `${numPart} ${matchedRoad.street}`,
+        label: `Gần ${numPart} ${matchedRoad.street}`,
+        name: `Gần ${numPart} ${matchedRoad.street}`,
+        secondaryLabel: 'Vị trí ước lượng theo trục đường, chưa có tọa độ thửa đất',
         houseNumber: numPart,
         street: matchedRoad.street,
         ward: matchedRoad.ward,
         district: matchedRoad.district,
         lng: matchedRoad.lng + 0.0008,
         lat: matchedRoad.lat + 0.0005,
+        matchQuality: 'approximate',
+        source: 'dynamic-address-parser',
         routableNodeId: snap.nodeId,
         routableSnapDistanceMeters: Math.max(60, snap.distanceMeters),
         isOutsideGraph: snap.distanceMeters > 50,
@@ -510,14 +613,21 @@ export function parseAddressQuery(query: string): SearchPlace | null {
   return null;
 }
 
+const SEARCH_CACHE = new Map<string, SearchPlace[]>();
+
 /**
- * Searches places database matching query with diacritic insensitivity.
+ * Searches places database matching query with diacritic and prefix insensitivity.
  */
 export function searchPlaces(query: string): SearchPlace[] {
   if (!query || !query.trim()) return ALL_HCMC_PLACES.slice(0, 10);
 
   const cleanQuery = query.trim();
   const normalizedQuery = normalizeVietnamese(cleanQuery);
+  const strippedQuery = stripVietnamesePrefixes(cleanQuery);
+
+  if (SEARCH_CACHE.has(normalizedQuery)) {
+    return SEARCH_CACHE.get(normalizedQuery)!;
+  }
 
   // 1. First check dynamic address / alley parser
   const dynamicPlace = parseAddressQuery(cleanQuery);
@@ -531,14 +641,27 @@ export function searchPlaces(query: string): SearchPlace[] {
     const houseNorm = place.houseNumber ? normalizeVietnamese(place.houseNumber) : '';
     const alleyNorm = place.alley ? normalizeVietnamese(place.alley) : '';
 
-    return (
+    const matchesNorm =
       labelNorm.includes(normalizedQuery) ||
       nameNorm.includes(normalizedQuery) ||
       streetNorm.includes(normalizedQuery) ||
       districtNorm.includes(normalizedQuery) ||
       (houseNorm && `${houseNorm} ${streetNorm}`.includes(normalizedQuery)) ||
-      (alleyNorm && `${alleyNorm} ${streetNorm}`.includes(normalizedQuery))
-    );
+      (alleyNorm && `${alleyNorm} ${streetNorm}`.includes(normalizedQuery));
+
+    if (matchesNorm) return true;
+
+    // Also match stripped prefix if different
+    if (strippedQuery && strippedQuery !== normalizedQuery) {
+      return (
+        labelNorm.includes(strippedQuery) ||
+        nameNorm.includes(strippedQuery) ||
+        streetNorm.includes(strippedQuery) ||
+        (houseNorm && `${houseNorm} ${streetNorm}`.includes(strippedQuery))
+      );
+    }
+
+    return false;
   });
 
   if (dynamicPlace && !results.some((r) => r.label.toLowerCase() === dynamicPlace.label.toLowerCase())) {
@@ -558,12 +681,21 @@ export function searchPlaces(query: string): SearchPlace[] {
   uniqueResults.sort((a, b) => {
     const aNorm = normalizeVietnamese(a.label);
     const bNorm = normalizeVietnamese(b.label);
-    const aStarts = aNorm.startsWith(normalizedQuery);
-    const bStarts = bNorm.startsWith(normalizedQuery);
+    const aStarts =
+      aNorm.startsWith(normalizedQuery) || (strippedQuery ? aNorm.startsWith(strippedQuery) : false);
+    const bStarts =
+      bNorm.startsWith(normalizedQuery) || (strippedQuery ? bNorm.startsWith(strippedQuery) : false);
     if (aStarts && !bStarts) return -1;
     if (!aStarts && bStarts) return 1;
     return 0;
   });
+
+  // Cache up to 100 entries
+  if (SEARCH_CACHE.size > 100) {
+    const firstKey = SEARCH_CACHE.keys().next().value;
+    if (firstKey) SEARCH_CACHE.delete(firstKey);
+  }
+  SEARCH_CACHE.set(normalizedQuery, uniqueResults);
 
   return uniqueResults;
 }
