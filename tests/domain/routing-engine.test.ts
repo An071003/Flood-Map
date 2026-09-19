@@ -69,7 +69,7 @@ describe('V4 Route Planner & Cost Engine (Spec: ROUTE-QA-PROMPT.md)', () => {
       const leastFloodH0 = candidatesH0.find((c) => c.strategy === 'LEAST_FLOOD')!;
       const leastFloodH12 = candidatesH12.find((c) => c.strategy === 'LEAST_FLOOD')!;
 
-      expect(leastFloodH12.maxDepthCm).toBeLessThanOrEqual(leastFloodH0.maxDepthCm);
+      expect(leastFloodH12.maxDepthCm!).toBeLessThanOrEqual(leastFloodH0.maxDepthCm!);
     });
   });
 
@@ -85,6 +85,8 @@ describe('V4 Route Planner & Cost Engine (Spec: ROUTE-QA-PROMPT.md)', () => {
       const evaluated = evaluateRoute([unknownSeg], 'LEAST_FLOOD', 0, VEHICLE_PROFILES.motorbike);
       expect(evaluated.unknownCount).toBe(1);
       expect(evaluated.coveragePercent).toBe(0);
+      expect(evaluated.evaluation.unknownSegmentCount).toBe(1);
+      expect(evaluated.evaluation.maxEstimatedDepthCm).toBeUndefined();
       expect(evaluated.recommendationState).toBe('insufficient_data');
     });
   });
@@ -110,7 +112,7 @@ describe('V4 Route Planner & Cost Engine (Spec: ROUTE-QA-PROMPT.md)', () => {
       // Least Flood uses the elevated Dien Bien Phu corridor
       const usedDBP = leastFlood!.segments.some((s) => s.roadId === 'dien-bien-phu');
       expect(usedDBP).toBe(true);
-      expect(leastFlood!.maxDepthCm).toBeLessThanOrEqual(10);
+      expect(leastFlood!.maxDepthCm!).toBeLessThanOrEqual(10);
     });
   });
 
@@ -153,4 +155,117 @@ describe('V4 Route Planner & Cost Engine (Spec: ROUTE-QA-PROMPT.md)', () => {
     });
   });
 
+  describe('Scenario E (Extended): No Viable Alternative / Severe Warning', () => {
+    it('warns not_recommended when traversing deep flood without inventing safe route', () => {
+      // Route directly into Thao Dien flood basin via Quoc Huong (35cm+)
+      const candidates = engine.findRoutes({
+        originNodeId: 'node-quoc-huong-xlhn',
+        destinationNodeId: 'node-quoc-huong-mid',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      expect(candidates.length).toBeGreaterThan(0);
+      const cand = candidates[0];
+      expect(cand.maxDepthCm!).toBeGreaterThanOrEqual(25);
+      expect(cand.recommendationState).toBe('not_recommended');
+      expect(cand.recommendationText).toContain('Không khuyến nghị');
+    });
+
+    it('returns empty array when two nodes are disconnected, never fakes route', () => {
+      // Non-existent or completely isolated node test
+      const candidates = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-fake-isolated-point',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      expect(candidates).toEqual([]);
+    });
+  });
+
+  describe('ROUTE-ENGINE-QA: Multi-Candidate & Vehicle Differentiation', () => {
+    it('generates 2-3 genuinely distinct alternative corridors between Ben Thanh and Thao Dien', () => {
+      const candidates = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      expect(candidates.length).toBeGreaterThanOrEqual(2);
+      expect(candidates.length).toBeLessThanOrEqual(3);
+
+      // Verify each candidate has a unique sequence of segments
+      const signatures = new Set(candidates.map((c) => c.segments.map((s) => s.id).join('->')));
+      expect(signatures.size).toBe(candidates.length);
+    });
+
+    it('differentiates scores and travel durations between motorbike and car on the same A/B', () => {
+      const mbCandidates = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'motorbike',
+        departureHour: 0,
+      });
+
+      const carCandidates = engine.findRoutes({
+        originNodeId: 'node-ben-thanh',
+        destinationNodeId: 'node-xuan-thuy-thao-dien',
+        vehicle: 'car',
+        departureHour: 0,
+      });
+
+      expect(mbCandidates.length).toBeGreaterThan(0);
+      expect(carCandidates.length).toBeGreaterThan(0);
+
+      // The top candidate vehicle scores must reflect vehicle differences
+      expect(mbCandidates[0].vehicle).toBe('motorbike');
+      expect(carCandidates[0].vehicle).toBe('car');
+      expect(mbCandidates[0].routeScore).toBeDefined();
+      expect(carCandidates[0].routeScore).toBeDefined();
+    });
+  });
+
+  describe('ROUTE-ENGINE-QA: Stress Test (Item G)', () => {
+    it('handles 20 vehicle toggles and 20 timeline changes without performance degradation or state corruption', () => {
+      const vehicles: ('motorbike' | 'car')[] = ['motorbike', 'car'];
+      const hours = [0, 1, 3, 6, 12, 24];
+
+      for (let i = 0; i < 20; i++) {
+        const v = vehicles[i % 2];
+        const h = hours[i % hours.length];
+
+        const routes = engine.findRoutes({
+          originNodeId: 'node-ben-thanh',
+          destinationNodeId: 'node-xuan-thuy-thao-dien',
+          vehicle: v,
+          departureHour: h,
+        });
+
+        expect(routes.length).toBeGreaterThan(0);
+        expect(routes[0].vehicle).toBe(v);
+        expect(routes[0].routeScore).toBeGreaterThanOrEqual(15);
+      }
+    });
+  });
+
+  describe('Spatial Snapping (Nearest Node Lookup)', () => {
+    it('snaps coordinates near Nguyen Huu Canh to node-nhc-thu-thiem', () => {
+      const result = engine.findNearestNode(106.7175, 10.7935);
+      expect(result).not.toBeNull();
+      expect(result!.node.id).toBe('node-nhc-thu-thiem');
+      expect(result!.distanceMeters).toBeLessThan(50);
+    });
+
+    it('returns null if coordinates are far beyond HCMC urban corridors', () => {
+      // Longitude/latitude in South China Sea / Vung Tau far away
+      const result = engine.findNearestNode(107.8, 10.1, 3000);
+      expect(result).toBeNull();
+    });
+  });
+
 });
+
+

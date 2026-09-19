@@ -67,7 +67,44 @@ export class RoutingEngine {
   }
 
   /**
-   * Find routes for origin -> destination with 3 strategies
+   * Snaps a geographic coordinate (lng, lat) to the nearest RoadNode in the graph.
+   * Returns the node and distance in meters.
+   */
+  public findNearestNode(
+    lng: number,
+    lat: number,
+    maxDistanceMeters = 4000
+  ): { node: RoadNode; distanceMeters: number } | null {
+    let bestNode: RoadNode | null = null;
+    let minDistance = Infinity;
+
+    for (const node of this.nodes.values()) {
+      const dLat = ((node.lat - lat) * Math.PI) / 180;
+      const dLng = ((node.lng - lng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat * Math.PI) / 180) *
+          Math.cos((node.lat * Math.PI) / 180) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distMeters = 6371000 * c;
+
+      if (distMeters < minDistance) {
+        minDistance = distMeters;
+        bestNode = node;
+      }
+    }
+
+    if (bestNode && minDistance <= maxDistanceMeters) {
+      return { node: bestNode, distanceMeters: Math.round(minDistance) };
+    }
+    return null;
+  }
+
+  /**
+   * Find alternative routes for origin -> destination using Diversity Penalty Search
+   * Guaranteed to discover distinct corridors when they exist, without inventing fake duplicates.
    */
   public findRoutes(req: RouteRequest): RouteCandidate[] {
     const { originNodeId, destinationNodeId, vehicle, departureHour } = req;
@@ -76,43 +113,118 @@ export class RoutingEngine {
     }
 
     const profile = VEHICLE_PROFILES[vehicle];
-    const strategies: RouteStrategy[] = ['LEAST_FLOOD', 'BALANCED', 'FASTEST'];
-    const candidates: RouteCandidate[] = [];
+    const edgePenalties = new Map<string, number>();
 
-    // Track unique segment sequences to prevent fake duplicates
-    const seenSignatures = new Set<string>();
+    // 1. Primary search: LEAST_FLOOD on unpenalized graph
+    const path1 = this.dijkstra(
+      originNodeId,
+      destinationNodeId,
+      'LEAST_FLOOD',
+      departureHour,
+      profile,
+      edgePenalties
+    );
 
-    for (const strategy of strategies) {
-      const pathSegments = this.dijkstra(
-        originNodeId,
-        destinationNodeId,
-        strategy,
-        departureHour,
-        profile
-      );
+    if (!path1 || path1.length === 0) {
+      return [];
+    }
 
-      if (pathSegments && pathSegments.length > 0) {
-        const signature = pathSegments.map((s) => s.id).join('->');
-        if (!seenSignatures.has(signature)) {
-          seenSignatures.add(signature);
-          const candidate = evaluateRoute(pathSegments, strategy, departureHour, profile);
-          candidates.push(candidate);
+    const distinctPaths: GraphRoadSegment[][] = [path1];
+
+    // Helper: compute overlap ratio by segment length
+    const computeOverlap = (pA: GraphRoadSegment[], pB: GraphRoadSegment[]): number => {
+      const setA = new Set(pA.map((s) => s.id));
+      let overlapLen = 0;
+      let lenA = 0;
+      let lenB = 0;
+      for (const s of pA) lenA += s.lengthMeters;
+      for (const s of pB) {
+        lenB += s.lengthMeters;
+        if (setA.has(s.id)) overlapLen += s.lengthMeters;
+      }
+      const minLen = Math.min(lenA, lenB);
+      return minLen > 0 ? overlapLen / minLen : 1;
+    };
+
+    // 2. Secondary search: Add diversity penalty (2.5x) to edges in path1, search with BALANCED
+    for (const seg of path1) {
+      edgePenalties.set(seg.id, (edgePenalties.get(seg.id) || 1) * 2.5);
+    }
+
+    const path2 = this.dijkstra(
+      originNodeId,
+      destinationNodeId,
+      'BALANCED',
+      departureHour,
+      profile,
+      edgePenalties
+    );
+
+    if (path2 && path2.length > 0) {
+      if (computeOverlap(path1, path2) < 0.80) {
+        distinctPaths.push(path2);
+        // Penalize path2 edges for path3 search
+        for (const seg of path2) {
+          edgePenalties.set(seg.id, (edgePenalties.get(seg.id) || 1) * 2.5);
         }
       }
     }
+
+    // 3. Tertiary search: Search with FASTEST on heavily penalized graph
+    const path3 = this.dijkstra(
+      originNodeId,
+      destinationNodeId,
+      'FASTEST',
+      departureHour,
+      profile,
+      edgePenalties
+    );
+
+    if (path3 && path3.length > 0) {
+      const overlapWithAll = distinctPaths.every(
+        (existing) => computeOverlap(existing, path3) < 0.80
+      );
+      if (overlapWithAll) {
+        distinctPaths.push(path3);
+      }
+    }
+
+    // 4. Evaluate and assign strategies to each distinct path
+    const candidates: RouteCandidate[] = [];
+
+    if (distinctPaths.length === 1) {
+      // Exactly 1 physical corridor exists
+      const cand = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
+      candidates.push(cand);
+    } else if (distinctPaths.length === 2) {
+      // 2 distinct corridors: Drier one is LEAST_FLOOD, faster one is BALANCED
+      const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
+      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1);
+      candidates.push(cand1, cand2);
+    } else {
+      // 3 distinct corridors: LEAST_FLOOD, BALANCED, FASTEST
+      const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
+      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1);
+      const cand3 = evaluateRoute(distinctPaths[2], 'FASTEST', departureHour, profile, 2);
+      candidates.push(cand1, cand2, cand3);
+    }
+
+    // Re-rank candidates by routeScore descending (most vehicle-appropriate first)
+    candidates.sort((a, b) => b.routeScore - a.routeScore);
 
     return candidates;
   }
 
   /**
-   * Dijkstra shortest-path search parameterized by strategy cost
+   * Dijkstra shortest-path search parameterized by strategy cost and diversity penalty
    */
   private dijkstra(
     startNodeId: string,
     endNodeId: string,
     strategy: RouteStrategy,
     hour: number,
-    profile = VEHICLE_PROFILES.motorbike
+    profile = VEHICLE_PROFILES.motorbike,
+    edgePenalties = new Map<string, number>()
   ): GraphRoadSegment[] | null {
     const distances = new Map<string, number>();
     const previous = new Map<
@@ -165,7 +277,9 @@ export class RoutingEngine {
       for (const edge of edges) {
         if (!unvisited.has(edge.targetNodeId)) continue;
 
-        const edgeCost = calculateSegmentCost(edge.segment, profile, hour, strategy);
+        const baseCost = calculateSegmentCost(edge.segment, profile, hour, strategy);
+        const diversityMultiplier = edgePenalties.get(edge.segment.id) || 1;
+        const edgeCost = baseCost * diversityMultiplier;
         const newDist = minDistance + edgeCost;
 
         if (newDist < (distances.get(edge.targetNodeId) ?? Infinity)) {

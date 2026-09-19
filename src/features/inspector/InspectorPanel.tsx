@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../../stores/app-store';
 import { RoadWeatherService } from '../../services/road-weather-service';
+import { RoutingEngine } from '../../domain/routing/routing-engine';
 
 const severityConfig: Record<
   string,
@@ -104,6 +105,38 @@ export const InspectorPanel: React.FC = () => {
           aria-label="Đóng bảng chi tiết"
         >
           ×
+        </button>
+      </div>
+
+      {/* Route Planner Quick Actions */}
+      <div className="inspector-route-actions">
+        <button
+          className="route-action-btn"
+          onClick={() => {
+            const nearest = RoutingEngine.getInstance().findNearestNode(p.anchorPoint[0], p.anchorPoint[1]);
+            if (nearest) {
+              useAppStore.getState().setRouteOriginId(nearest.node.id);
+              useAppStore.getState().setRoutePlannerOpen(true);
+            }
+          }}
+          title={`Đặt ${p.roadName} làm điểm xuất phát (A)`}
+        >
+          <span className="point-badge origin mini" aria-hidden="true">A</span>
+          <span>Đi từ đây</span>
+        </button>
+        <button
+          className="route-action-btn"
+          onClick={() => {
+            const nearest = RoutingEngine.getInstance().findNearestNode(p.anchorPoint[0], p.anchorPoint[1]);
+            if (nearest) {
+              useAppStore.getState().setRouteDestinationId(nearest.node.id);
+              useAppStore.getState().setRoutePlannerOpen(true);
+            }
+          }}
+          title={`Đặt ${p.roadName} làm điểm đến (B)`}
+        >
+          <span className="point-badge destination mini" aria-hidden="true">B</span>
+          <span>Đến đây</span>
         </button>
       </div>
 

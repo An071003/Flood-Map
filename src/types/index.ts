@@ -206,17 +206,29 @@ export interface VehicleProfile {
 
 export type RouteStrategy = 'LEAST_FLOOD' | 'BALANCED' | 'FASTEST';
 
+export interface RouteEvaluation {
+  totalDistanceMeters: number;
+  knownDistanceMeters: number;
+  dataCoverage: number; // 0..100 percentage
+  unknownSegmentCount: number;
+  maxEstimatedDepthCm?: number;
+  worstKnownSegmentId?: string;
+}
+
 export interface RouteCandidate {
   id: string;
   strategy: RouteStrategy;
   strategyLabel: string;
+  vehicle: VehicleType;
+  routeScore: number; // 0..100 suitability score
   segments: GraphRoadSegment[];
   totalDistanceMeters: number;
   totalDurationSeconds: number;
-  maxDepthCm: number;
+  evaluation: RouteEvaluation;
+  maxDepthCm?: number;
   worstSegment: {
     roadName: string;
-    depthCm: number;
+    depthCm?: number;
     riskLevel: RiskLevel | 'unknown';
   } | null;
   warningCount: number;

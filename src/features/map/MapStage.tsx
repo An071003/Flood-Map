@@ -328,6 +328,8 @@ export const MapStage: React.FC = () => {
             '#38bdf8',
             'safe',
             '#2fd39a',
+            'unknown',
+            '#64748b',
             '#94a3b8',
           ],
           'line-width': 6,
@@ -357,6 +359,42 @@ export const MapStage: React.FC = () => {
           'circle-stroke-width': 3,
           'circle-stroke-color': '#ffffff',
         },
+      });
+
+      // 4b. Unknown segments on selected route: dashed neutral styling (Spec V4.1)
+      map.addLayer({
+        id: 'hcmc-route-selected-unknown',
+        type: 'line',
+        source: 'hcmc-route-selected',
+        filter: ['==', ['get', 'riskLevel'], 'unknown'],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#94a3b8',
+          'line-width': 5,
+          'line-opacity': 0.95,
+          'line-dasharray': [2, 2],
+        },
+      });
+
+      // 4c. Move HCMC boundary stroke to the top to prevent route casing occlusion
+      if (map.getLayer('hcmc-boundary-stroke')) {
+        map.moveLayer('hcmc-boundary-stroke');
+      }
+
+      // 4d. Interactive click listener for alternative route lines
+      map.on('click', 'hcmc-route-alternatives-line', (e) => {
+        if (e.features && e.features.length > 0) {
+          const altId = e.features[0].properties?.id;
+          if (altId) {
+            useAppStore.getState().setSelectedRouteCandidateId(altId);
+          }
+        }
+      });
+      map.on('mouseenter', 'hcmc-route-alternatives-line', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', 'hcmc-route-alternatives-line', () => {
+        map.getCanvas().style.cursor = '';
       });
 
       // 5. Three.js 3D Road Flood Ribbon Layer
@@ -414,6 +452,18 @@ export const MapStage: React.FC = () => {
           ['get', 'id'],
           selectedRoadId || '',
         ]);
+      }
+
+      // Update boundary & mask visibility
+      const boundaryVisible = activeLayers.hcmcBoundary ? 'visible' : 'none';
+      if (map.getLayer('hcmc-boundary-stroke')) {
+        map.setLayoutProperty('hcmc-boundary-stroke', 'visibility', boundaryVisible);
+      }
+      if (map.getLayer('hcmc-boundary-fill')) {
+        map.setLayoutProperty('hcmc-boundary-fill', 'visibility', boundaryVisible);
+      }
+      if (map.getLayer('hcmc-outside-mask-fill')) {
+        map.setLayoutProperty('hcmc-outside-mask-fill', 'visibility', boundaryVisible);
       }
     }
 
@@ -552,8 +602,8 @@ export const MapStage: React.FC = () => {
         ],
         {
           padding: isMobile
-            ? { top: 80, bottom: 260, left: 40, right: 40 }
-            : { top: 100, bottom: 100, left: 440, right: 100 },
+            ? { top: 70, bottom: 260, left: 30, right: 30 }
+            : { top: 90, bottom: 90, left: 80, right: 420 },
           duration: 900,
           essential: true,
         }

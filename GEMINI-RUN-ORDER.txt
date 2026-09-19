@@ -1,9 +1,8 @@
-1. Read AGENT.md/V3.3 docs if present
-2. Read AGENT-V4.md
-3. Run REVIEW-V4-PROMPT.md
-4. Do not implement until audit reports coverage/topology gaps
-5. Run IMPLEMENT-V4-PROMPT.md phase by phase
-6. Run ROUTE-QA-PROMPT.md
-7. Deploy
-8. Run RELEASE-V4-PROMPT.md
-9. Do not declare done while Critical/High fail
+1. Read AGENT-V4.1.md
+2. Run REVIEW-V4.1-PROMPT.md
+3. Do not code until root causes are explicit
+4. Run IMPLEMENT-V4.1-PROMPT.md
+5. Run ROUTE-ENGINE-QA-PROMPT.md
+6. Build + deploy
+7. Run RELEASE-V4.1-PROMPT.md against live URL
+8. Do not declare done while Critical/High fail

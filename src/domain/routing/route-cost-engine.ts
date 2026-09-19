@@ -71,19 +71,21 @@ export function evaluateRoute(
   segments: GraphRoadSegment[],
   strategy: RouteStrategy,
   hour: number,
-  profile: VehicleProfile
+  profile: VehicleProfile,
+  candidateIndex = 0
 ): RouteCandidate {
   let totalDistanceMeters = 0;
-  let baseTravelSeconds = 0;
-  let maxDepthCm = 0;
+  let rawTravelSeconds = 0;
+  let maxDepthCm: number | undefined = undefined;
   let warningCount = 0;
   let severeCount = 0;
   let unknownCount = 0;
   let knownMeters = 0;
+  let hasKnownDepth = false;
 
   let worstSegment: {
     roadName: string;
-    depthCm: number;
+    depthCm?: number;
     riskLevel: 'safe' | 'watch' | 'warning' | 'severe' | 'unknown';
   } | null = null;
 
@@ -92,7 +94,16 @@ export function evaluateRoute(
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     totalDistanceMeters += seg.lengthMeters;
-    baseTravelSeconds += seg.estimatedTravelSeconds;
+
+    // Vehicle-adjusted base speed
+    // Cars move faster on trunk/primary arteries; Motorbikes move more agilely in secondary/tertiary
+    let speedFactor = 1.0;
+    if (profile.type === 'car') {
+      speedFactor = seg.roadClass === 'trunk' ? 0.85 : seg.roadClass === 'primary' ? 0.92 : 1.05;
+    } else {
+      speedFactor = seg.roadClass === 'trunk' ? 1.05 : seg.roadClass === 'secondary' ? 0.95 : 0.9;
+    }
+    rawTravelSeconds += Math.round(seg.estimatedTravelSeconds * speedFactor);
 
     const floodState = seg.floodForecast[hour] || seg.floodForecast[0];
 
@@ -101,7 +112,9 @@ export function evaluateRoute(
     } else {
       knownMeters += seg.lengthMeters;
       const depth = floodState.estimatedDepthCm ?? 0;
-      if (depth > maxDepthCm) {
+      hasKnownDepth = true;
+
+      if (maxDepthCm === undefined || depth > maxDepthCm) {
         maxDepthCm = depth;
       }
 
@@ -111,7 +124,7 @@ export function evaluateRoute(
         warningCount++;
       }
 
-      if (!worstSegment || depth > worstSegment.depthCm) {
+      if (!worstSegment || (worstSegment.depthCm !== undefined && depth > worstSegment.depthCm) || worstSegment.depthCm === undefined) {
         worstSegment = {
           roadName: seg.roadName,
           depthCm: depth,
@@ -126,7 +139,6 @@ export function evaluateRoute(
       if (allCoordinates.length === 0) {
         allCoordinates.push(...coords);
       } else {
-        // Skip first point if it connects to previous point
         allCoordinates.push(...coords.slice(1));
       }
     }
@@ -137,54 +149,84 @@ export function evaluateRoute(
       ? Math.round((knownMeters / totalDistanceMeters) * 100)
       : 100;
 
-  // Add realistic delay for water/traffic
-  const waterDelay = severeCount * 180 + warningCount * 60;
-  const totalDurationSeconds = baseTravelSeconds + waterDelay;
+  // Realistic vehicle-specific delay caused by standing water & traffic crawling
+  // Motorbikes must slow down drastically in 15cm+ or risk hydro-locking
+  const waterDelay =
+    profile.type === 'motorbike'
+      ? severeCount * 300 + warningCount * 90
+      : severeCount * 220 + warningCount * 45;
 
-  // Recommendation State (No guarantee wording allowed!)
+  const totalDurationSeconds = rawTravelSeconds + waterDelay;
+
+  // Vehicle Suitability Score (0..100)
+  let floodPenalty = 0;
+  if (hasKnownDepth && maxDepthCm !== undefined) {
+    const impassableDepth = profile.type === 'motorbike' ? 25 : 35;
+    floodPenalty = Math.min(50, Math.round((maxDepthCm / impassableDepth) * 45));
+  }
+  const severeDeduction = severeCount * (profile.type === 'motorbike' ? 35 : 25);
+  const warningDeduction = warningCount * (profile.type === 'motorbike' ? 14 : 8);
+  const unknownDeduction = unknownCount * 8;
+  const timeDeduction = Math.min(20, Math.round(totalDurationSeconds / 180));
+
+  const rawScore = 100 - floodPenalty - severeDeduction - warningDeduction - unknownDeduction - timeDeduction;
+  const routeScore = Math.max(15, Math.min(99, Math.round(rawScore)));
+
+  // Recommendation State (Strictly adhere to NO safety guarantee wording)
   let recommendationState: RouteCandidate['recommendationState'] = 'favorable';
   let recommendationText = '';
   let explanation = '';
 
-  const isMotorbike = profile.type === 'motorbike';
-  const impassableDepth = isMotorbike ? 25 : 35;
+  const impassableDepth = profile.type === 'motorbike' ? 25 : 35;
 
-  if (coveragePercent < 65 || unknownCount >= 2) {
+  if (coveragePercent < 60 || unknownCount >= 2) {
     recommendationState = 'insufficient_data';
-    recommendationText = 'Dữ liệu đo chưa đầy đủ trên một số đoạn. Khuyến nghị theo dõi thực địa.';
-  } else if (maxDepthCm >= impassableDepth || severeCount > 0) {
+    recommendationText = 'Dữ liệu đo chưa đầy đủ trên một số đoạn. Cần thận trọng quan sát thực địa.';
+  } else if ((maxDepthCm !== undefined && maxDepthCm >= impassableDepth) || severeCount > 0) {
     recommendationState = 'not_recommended';
-    recommendationText = `Có điểm ngập sâu (${maxDepthCm} cm). Không khuyến nghị phương tiện ${profile.label.toLowerCase()} lưu thông.`;
-  } else if (maxDepthCm >= 15 || warningCount > 0) {
+    recommendationText = `Có điểm ngập sâu (~${maxDepthCm ?? 30} cm). Không khuyến nghị ${profile.label.toLowerCase()} lưu thông.`;
+  } else if ((maxDepthCm !== undefined && maxDepthCm >= (profile.type === 'motorbike' ? 12 : 20)) || warningCount > 0) {
     recommendationState = 'caution';
-    recommendationText = `Mực nước ước tính ${maxDepthCm} cm. Cần thận trọng khi di chuyển qua vùng trũng.`;
+    recommendationText = `Mực nước ước tính ~${maxDepthCm ?? 15} cm. Cần thận trọng khi di chuyển qua vùng trũng.`;
   } else {
     recommendationState = 'favorable';
-    recommendationText = 'Lộ trình ít nguy cơ ngập nhất trong khung giờ dự báo đã chọn.';
+    recommendationText = 'Ít rủi ro ngập hơn theo mô hình trong khung giờ dự báo đã chọn.';
   }
 
   // Strategy Label & Explanation
   let strategyLabel = '';
   if (strategy === 'LEAST_FLOOD') {
     strategyLabel = 'Ít ngập nhất';
-    explanation = worstSegment && worstSegment.depthCm > 0
-      ? `Ưu tiên né tối đa các điểm ngập sâu. Điểm ngập cao nhất ghi nhận: ${worstSegment.roadName} (~${worstSegment.depthCm} cm).`
-      : 'Tuyến đường cao ráo, đi qua các trục đường chính thoát nước tốt.';
+    explanation = worstSegment && worstSegment.depthCm !== undefined && worstSegment.depthCm > 0
+      ? `Ưu tiên né tối đa các điểm ngập sâu. Điểm ngập cao nhất: ${worstSegment.roadName} (~${worstSegment.depthCm} cm).`
+      : 'Lộ trình cao ráo, đi qua các trục đường chính thoát nước tốt.';
   } else if (strategy === 'BALANCED') {
     strategyLabel = 'Cân bằng';
     explanation = 'Hài hòa giữa thời gian di chuyển và hạn chế tối đa các đoạn ngập nghiêm trọng.';
   } else {
     strategyLabel = 'Nhanh nhất';
-    explanation = 'Lộ trình tối ưu theo khoảng cách và tốc độ lưu thông, có thể đi qua vùng nước trũng.';
+    explanation = 'Lộ trình tối ưu theo khoảng cách và tốc độ lưu thông, có thể đi qua một số vùng đọng nước.';
   }
 
+  const evaluation = {
+    totalDistanceMeters,
+    knownDistanceMeters: knownMeters,
+    dataCoverage: coveragePercent,
+    unknownSegmentCount: unknownCount,
+    maxEstimatedDepthCm: hasKnownDepth ? maxDepthCm : undefined,
+    worstKnownSegmentId: worstSegment?.roadName,
+  };
+
   return {
-    id: `route-${strategy.toLowerCase()}`,
+    id: `route-${profile.type}-${strategy.toLowerCase()}-${candidateIndex}`,
     strategy,
     strategyLabel,
+    vehicle: profile.type,
+    routeScore,
     segments,
     totalDistanceMeters,
     totalDurationSeconds,
+    evaluation,
     maxDepthCm,
     worstSegment,
     warningCount,

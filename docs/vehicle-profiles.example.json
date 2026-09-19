@@ -1,9 +1,8 @@
 {
   "motorbike": {
-    "label": "Xe máy",
-    "unknownPenalty": 120,
-    "warningPenalty": 180,
-    "severePenalty": 600,
+    "unknownPenalty": 160,
+    "warningPenalty": 220,
+    "severePenalty": 700,
     "depthPenaltyCurve": [
       {
         "minCm": 0,
@@ -13,31 +12,29 @@
       {
         "minCm": 6,
         "maxCm": 15,
-        "penalty": 30
+        "penalty": 40
       },
       {
         "minCm": 16,
         "maxCm": 25,
-        "penalty": 180
+        "penalty": 220
       },
       {
         "minCm": 26,
         "maxCm": 35,
-        "penalty": 600
+        "penalty": 700
       },
       {
         "minCm": 36,
         "maxCm": null,
-        "penalty": 1200
+        "penalty": 1400
       }
-    ],
-    "note": "Routing heuristic only; not a safety guarantee."
+    ]
   },
   "car": {
-    "label": "Xe hơi",
-    "unknownPenalty": 100,
-    "warningPenalty": 120,
-    "severePenalty": 500,
+    "unknownPenalty": 120,
+    "warningPenalty": 140,
+    "severePenalty": 550,
     "depthPenaltyCurve": [
       {
         "minCm": 0,
@@ -47,24 +44,24 @@
       {
         "minCm": 6,
         "maxCm": 15,
-        "penalty": 10
+        "penalty": 15
       },
       {
         "minCm": 16,
         "maxCm": 25,
-        "penalty": 80
+        "penalty": 100
       },
       {
         "minCm": 26,
         "maxCm": 35,
-        "penalty": 300
+        "penalty": 350
       },
       {
         "minCm": 36,
         "maxCm": null,
-        "penalty": 1000
+        "penalty": 1100
       }
-    ],
-    "note": "Routing heuristic only; vehicle-specific clearance varies."
-  }
+    ]
+  },
+  "note": "Example routing heuristics only; not safety guarantees."
 }

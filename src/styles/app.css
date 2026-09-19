@@ -1445,6 +1445,39 @@ input[type=range] {
   font-size: 13px;
 }
 
+.inspector-route-actions {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.route-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #0d1e31;
+  border: 1px solid #1f3b58;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--motion-micro);
+}
+.route-action-btn:hover {
+  background: #152b45;
+  border-color: var(--accent-cyan);
+  color: #38bdf8;
+}
+.point-badge.mini {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  font-size: 9px;
+}
+
 /* Tablet Responsive (max-width: 1050px) */
 @media (max-width: 1050px) {
   .topbar {
@@ -1634,12 +1667,29 @@ input[type=range] {
     top: auto;
     bottom: 0;
     width: 100%;
-    max-height: 82vh;
-    padding: 10px 14px 24px;
+    padding: 8px 14px 20px;
     border-radius: 20px 20px 0 0;
     border-bottom: 0;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
     z-index: 45;
+    transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .route-planner-panel.sheet-collapsed {
+    max-height: 180px;
+    overflow: hidden;
+  }
+  .route-planner-panel.sheet-collapsed .route-candidates-list,
+  .route-planner-panel.sheet-collapsed .route-forecast-pill,
+  .route-planner-panel.sheet-collapsed .route-footer {
+    display: none;
+  }
+  .route-planner-panel.sheet-half {
+    max-height: 48vh;
+    overflow-y: auto;
+  }
+  .route-planner-panel.sheet-expanded {
+    max-height: 82vh;
+    overflow-y: auto;
   }
   .route-planner-btn .route-btn-label {
     display: none;

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { useAppStore } from '../../stores/app-store';
 import { RoutingEngine } from '../../domain/routing/routing-engine';
 
@@ -16,8 +16,23 @@ export const RoutePlannerPanel: React.FC = () => {
   const setSelectedRouteCandidateId = useAppStore((s) => s.setSelectedRouteCandidateId);
   const timelineHour = useAppStore((s) => s.timelineHour);
 
+  type SheetState = 'collapsed' | 'half' | 'expanded';
+  const [sheetState, setSheetState] = useState<SheetState>('expanded');
+  const touchStartYRef = useRef<number>(0);
+
   const engine = useMemo(() => RoutingEngine.getInstance(), []);
   const allNodes = useMemo(() => engine.getNodes(), [engine]);
+
+  // Group nodes by district for easy selection
+  const nodesByDistrict = useMemo(() => {
+    const map = new Map<string, typeof allNodes>();
+    for (const node of allNodes) {
+      const list = map.get(node.district) || [];
+      list.push(node);
+      map.set(node.district, list);
+    }
+    return map;
+  }, [allNodes]);
 
   if (!isRoutePlannerOpen) return null;
 
@@ -39,10 +54,43 @@ export const RoutePlannerPanel: React.FC = () => {
     return `${meters} m`;
   };
 
+  const cycleSheetState = () => {
+    setSheetState((prev) => {
+      if (prev === 'collapsed') return 'half';
+      if (prev === 'half') return 'expanded';
+      return 'collapsed';
+    });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchEndY - touchStartYRef.current;
+    if (diff < -35) {
+      setSheetState((prev) => (prev === 'collapsed' ? 'half' : 'expanded'));
+    } else if (diff > 35) {
+      setSheetState((prev) => (prev === 'expanded' ? 'half' : 'collapsed'));
+    }
+  };
+
   return (
-    <section className="route-planner-panel" aria-label="Bảng lập lộ trình tránh ngập">
+    <section
+      className={`route-planner-panel sheet-${sheetState}`}
+      aria-label="Bảng lập lộ trình tránh ngập"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Mobile Drawer Pill Handle */}
-      <div className="mobile-grab-bar" aria-hidden="true">
+      <div
+        className="mobile-grab-bar"
+        onClick={cycleSheetState}
+        role="button"
+        tabIndex={0}
+        aria-label={`Trạng thái bảng lộ trình: ${sheetState}. Bấm hoặc vuốt để thay đổi`}
+      >
         <span className="grab-pill"></span>
       </div>
 
@@ -78,10 +126,14 @@ export const RoutePlannerPanel: React.FC = () => {
               aria-label="Điểm xuất phát"
             >
               <option value="" disabled>Chọn điểm xuất phát...</option>
-              {allNodes.map((node) => (
-                <option key={`origin-${node.id}`} value={node.id}>
-                  {node.name} ({node.district})
-                </option>
+              {Array.from(nodesByDistrict.entries()).map(([district, nodes]) => (
+                <optgroup key={`origin-grp-${district}`} label={district}>
+                  {nodes.map((node) => (
+                    <option key={`origin-${node.id}`} value={node.id}>
+                      {node.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -108,10 +160,14 @@ export const RoutePlannerPanel: React.FC = () => {
               aria-label="Điểm đến"
             >
               <option value="" disabled>Chọn điểm đến...</option>
-              {allNodes.map((node) => (
-                <option key={`dest-${node.id}`} value={node.id}>
-                  {node.name} ({node.district})
-                </option>
+              {Array.from(nodesByDistrict.entries()).map(([district, nodes]) => (
+                <optgroup key={`dest-grp-${district}`} label={district}>
+                  {nodes.map((node) => (
+                    <option key={`dest-${node.id}`} value={node.id}>
+                      {node.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -210,36 +266,51 @@ export const RoutePlannerPanel: React.FC = () => {
                     <span className="stat-label">Mực ngập cao nhất:</span>
                     <strong
                       className={`depth-val ${
-                        candidate.maxDepthCm >= 30
+                        candidate.maxDepthCm !== undefined && candidate.maxDepthCm >= 30
                           ? 'severe'
-                          : candidate.maxDepthCm >= 15
+                          : candidate.maxDepthCm !== undefined && candidate.maxDepthCm >= 15
                           ? 'warning'
-                          : candidate.maxDepthCm >= 5
+                          : candidate.maxDepthCm !== undefined && candidate.maxDepthCm >= 5
                           ? 'watch'
-                          : 'safe'
+                          : candidate.maxDepthCm !== undefined
+                          ? 'safe'
+                          : 'unknown'
                       }`}
                     >
-                      {candidate.maxDepthCm > 0 ? `${candidate.maxDepthCm} cm` : '0 cm (Khô ráo)'}
+                      {candidate.maxDepthCm !== undefined
+                        ? candidate.maxDepthCm > 0
+                          ? `${candidate.maxDepthCm} cm`
+                          : '0 cm (Khô ráo)'
+                        : 'Chưa có dữ liệu cảm biến'}
                     </strong>
                   </div>
 
-                  {candidate.worstSegment && candidate.worstSegment.depthCm > 0 && (
+                  {candidate.worstSegment && candidate.worstSegment.depthCm !== undefined && candidate.worstSegment.depthCm > 0 && (
                     <div className="worst-point">
                       <span>Đoạn trũng: </span>
-                      <b>{candidate.worstSegment.roadName}</b>
+                      <b>{candidate.worstSegment.roadName} (~{candidate.worstSegment.depthCm} cm)</b>
                     </div>
                   )}
 
-                  <div className="coverage-stat">
-                    <span>Độ phủ dữ liệu đo: </span>
-                    <b className={candidate.coveragePercent < 80 ? 'text-warn' : 'text-good'}>
-                      {candidate.coveragePercent}%
-                    </b>
-                    {candidate.unknownCount > 0 && (
-                      <span className="unknown-pill">
-                        ({candidate.unknownCount} đoạn chưa có cảm biến)
-                      </span>
-                    )}
+                  <div className="route-metrics-row">
+                    <div className="score-stat" title={`Điểm phù hợp theo phương tiện ${selectedVehicle === 'motorbike' ? 'xe máy' : 'xe hơi'}`}>
+                      <span>Phù hợp {selectedVehicle === 'motorbike' ? '🏍️' : '🚗'}: </span>
+                      <b className={candidate.routeScore >= 75 ? 'text-good' : candidate.routeScore >= 50 ? 'text-warn' : 'text-danger'}>
+                        {candidate.routeScore}/100
+                      </b>
+                    </div>
+
+                    <div className="coverage-stat">
+                      <span>Độ phủ dữ liệu: </span>
+                      <b className={candidate.coveragePercent < 80 ? 'text-warn' : 'text-good'}>
+                        {candidate.coveragePercent}%
+                      </b>
+                      {candidate.unknownCount > 0 && (
+                        <span className="unknown-pill" title="Đoạn đường chưa có cảm biến đo đạc thời gian thực">
+                          ({candidate.unknownCount} đoạn chưa đo)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
