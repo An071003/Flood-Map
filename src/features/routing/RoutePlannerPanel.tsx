@@ -1,14 +1,23 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { useAppStore } from '../../stores/app-store';
 import { RoutingEngine, formatOmissionReason } from '../../domain/routing/routing-engine';
+import { FloodModelPreference, DataQualityPreference } from '../../types';
 
 export const RoutePlannerPanel: React.FC = () => {
   const isRoutePlannerOpen = useAppStore((s) => s.isRoutePlannerOpen);
   const setRoutePlannerOpen = useAppStore((s) => s.setRoutePlannerOpen);
+  const setSearchOpen = useAppStore((s) => s.setSearchOpen);
   const routeOriginId = useAppStore((s) => s.routeOriginId);
   const routeDestinationId = useAppStore((s) => s.routeDestinationId);
   const setRouteOriginId = useAppStore((s) => s.setRouteOriginId);
   const setRouteDestinationId = useAppStore((s) => s.setRouteDestinationId);
+  const originPlace = useAppStore((s) => s.originPlace);
+  const destinationPlace = useAppStore((s) => s.destinationPlace);
+  const snapWarningNote = useAppStore((s) => s.snapWarningNote);
+  const floodModelPreference = useAppStore((s) => s.floodModelPreference);
+  const setFloodModelPreference = useAppStore((s) => s.setFloodModelPreference);
+  const dataQualityPreference = useAppStore((s) => s.dataQualityPreference);
+  const setDataQualityPreference = useAppStore((s) => s.setDataQualityPreference);
   const selectedVehicle = useAppStore((s) => s.selectedVehicle);
   const setSelectedVehicle = useAppStore((s) => s.setSelectedVehicle);
   const routeCandidates = useAppStore((s) => s.routeCandidates);
@@ -128,7 +137,10 @@ export const RoutePlannerPanel: React.FC = () => {
               id="origin-node-select"
               className="route-node-select"
               value={routeOriginId || ''}
-              onChange={(e) => setRouteOriginId(e.target.value)}
+              onChange={(e) => {
+                setRouteOriginId(e.target.value);
+                useAppStore.setState({ originPlace: null });
+              }}
               aria-label="Điểm xuất phát"
             >
               <option value="" disabled>Chọn điểm xuất phát...</option>
@@ -144,6 +156,13 @@ export const RoutePlannerPanel: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {originPlace && (
+          <div className="place-source-tag origin-tag">
+            <span className="tag-icon">📍</span>
+            <span>Địa chỉ: <b>{originPlace.name || originPlace.label}</b></span>
+          </div>
+        )}
 
         <button
           className="swap-nodes-btn"
@@ -162,7 +181,10 @@ export const RoutePlannerPanel: React.FC = () => {
               id="dest-node-select"
               className="route-node-select"
               value={routeDestinationId || ''}
-              onChange={(e) => setRouteDestinationId(e.target.value)}
+              onChange={(e) => {
+                setRouteDestinationId(e.target.value);
+                useAppStore.setState({ destinationPlace: null, snapWarningNote: null });
+              }}
               aria-label="Điểm đến"
             >
               <option value="" disabled>Chọn điểm đến...</option>
@@ -178,6 +200,35 @@ export const RoutePlannerPanel: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {destinationPlace && (
+          <div className="place-source-tag dest-tag">
+            <span className="tag-icon">🏁</span>
+            <span>Điểm đến: <b>{destinationPlace.name || destinationPlace.label}</b></span>
+          </div>
+        )}
+
+        {/* Quick Search Trigger */}
+        <div className="route-search-shortcut-row">
+          <button
+            type="button"
+            className="open-search-from-route-btn"
+            onClick={() => setSearchOpen(true)}
+          >
+            <span>⌕</span> Tìm theo số nhà, hẻm, địa điểm cụ thể...
+          </button>
+        </div>
+
+        {/* Off-graph Snapping Disclosure (Rule 2 & 5) */}
+        {snapWarningNote && (
+          <div className="route-snap-warning-banner" role="alert">
+            <span className="snap-warn-icon" aria-hidden="true">⚠️</span>
+            <div className="snap-warn-content">
+              <strong>Lưu ý tiếp cận điểm đến</strong>
+              <p>{snapWarningNote}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Vehicle Mode Selector */}
@@ -209,6 +260,35 @@ export const RoutePlannerPanel: React.FC = () => {
             <small>Chịu ngập (&gt;25cm)</small>
           </div>
         </button>
+      </div>
+
+      {/* V5 Route Preference Filters */}
+      <div className="route-preferences-strip">
+        <div className="pref-item">
+          <label htmlFor="pref-flood-model">Mô hình:</label>
+          <select
+            id="pref-flood-model"
+            value={floodModelPreference}
+            onChange={(e) => setFloodModelPreference(e.target.value as FloodModelPreference)}
+            className="pref-select"
+          >
+            <option value="auto">Tự động</option>
+            <option value="cautious">Thận trọng cao</option>
+          </select>
+        </div>
+
+        <div className="pref-item">
+          <label htmlFor="pref-data-quality">Dữ liệu:</label>
+          <select
+            id="pref-data-quality"
+            value={dataQualityPreference}
+            onChange={(e) => setDataQualityPreference(e.target.value as DataQualityPreference)}
+            className="pref-select"
+          >
+            <option value="all">Tất cả tuyến</option>
+            <option value="high_coverage_only">Độ phủ cao (≥80%)</option>
+          </select>
+        </div>
       </div>
 
       {/* Forecast departure time notice */}

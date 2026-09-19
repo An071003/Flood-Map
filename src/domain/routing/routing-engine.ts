@@ -366,7 +366,18 @@ export class RoutingEngine {
     }
 
     // Re-rank candidates by routeScore descending (most vehicle-appropriate first)
-    candidates.sort((a, b) => b.routeScore - a.routeScore);
+    candidates.sort((a, b) => {
+      if (req.preferredStrategy) {
+        if (a.strategy === req.preferredStrategy && b.strategy !== req.preferredStrategy) return -1;
+        if (b.strategy === req.preferredStrategy && a.strategy !== req.preferredStrategy) return 1;
+      }
+      if (req.dataQualityPreference === 'high_coverage_only') {
+        if (b.coveragePercent !== a.coveragePercent) {
+          return b.coveragePercent - a.coveragePercent;
+        }
+      }
+      return b.routeScore - a.routeScore;
+    });
 
     return candidates;
   }

@@ -1,11 +1,23 @@
 import { create } from 'zustand';
-import { ActiveLayers, CandidateOmissionReason, DataState, RouteCandidate, VehicleType } from '../types';
+import {
+  ActiveLayers,
+  AppInteractionMode,
+  CandidateOmissionReason,
+  DataQualityPreference,
+  DataState,
+  FloodModelPreference,
+  RouteCandidate,
+  SearchPlace,
+  VehicleType,
+} from '../types';
 import { RoutingEngine } from '../domain/routing/routing-engine';
+import { snapCoordinatesToGraph } from '../services/geodata/hcmc-places-database';
 
 export interface MapStateSnapshot {
   selectedRoadId: string | null;
   timelineHour: number;
   activeLayers: ActiveLayers;
+  interactionMode: AppInteractionMode;
 }
 
 interface AppState {
@@ -21,7 +33,18 @@ interface AppState {
   dataState: DataState;
   lastUpdatedTimestamp: string;
 
-  // V4 Route Planner State
+  // V5 Interaction Mode & Navigation First
+  interactionMode: AppInteractionMode;
+  originPlace: SearchPlace | null;
+  destinationPlace: SearchPlace | null;
+  snapWarningNote: string | null;
+  floodModelPreference: FloodModelPreference;
+  dataQualityPreference: DataQualityPreference;
+  userCurrentLocation: { lng: number; lat: number; label: string } | null;
+  isLocating: boolean;
+  locationError: string | null;
+
+  // V4/V5 Route Planner State
   isRoutePlannerOpen: boolean;
   routeOriginId: string | null;
   routeDestinationId: string | null;
@@ -33,7 +56,7 @@ interface AppState {
   requestedRouteCount: number;
   displayedRouteCount: number;
 
-  // V4.3 State Snapshot & QA Fixture
+  // State Snapshot & QA Fixture
   priorMapStateSnapshot: MapStateSnapshot | null;
   qaUnknownFixtureEnabled: boolean;
 
@@ -51,7 +74,15 @@ interface AppState {
   triggerResetCamera: () => void;
   setDataState: (state: DataState) => void;
 
-  // V4 Route Planner Actions
+  // V5 Actions
+  setInteractionMode: (mode: AppInteractionMode) => void;
+  setOriginPlace: (place: SearchPlace | null) => void;
+  setDestinationPlace: (place: SearchPlace | null) => void;
+  setFloodModelPreference: (pref: FloodModelPreference) => void;
+  setDataQualityPreference: (pref: DataQualityPreference) => void;
+  fetchUserLocation: (target?: 'origin' | 'destination') => Promise<void>;
+
+  // Route Planner Actions
   setRoutePlannerOpen: (open: boolean) => void;
   setRouteOriginId: (id: string | null) => void;
   setRouteDestinationId: (id: string | null) => void;
@@ -62,11 +93,11 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  selectedRoadId: 'road-nguyen-huu-canh', // Initial road matching specification
+  selectedRoadId: null, // V5 Browse mode default: no road pre-selected
   timelineHour: 0,
   isPlaying: false,
   activeLayers: {
-    roadFlood: true,
+    roadFlood: false, // Rule 1: Global flood-road overlay default OFF in browse mode
     rain: true,
     weatherLabels: true,
     tide: true,
@@ -81,7 +112,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   dataState: 'fresh',
   lastUpdatedTimestamp: '14:32 (2 phút trước)',
 
-  // V4 Initial States
+  // V5 Navigation-first State
+  interactionMode: 'browse',
+  originPlace: null,
+  destinationPlace: null,
+  snapWarningNote: null,
+  floodModelPreference: 'auto',
+  dataQualityPreference: 'all',
+  userCurrentLocation: null,
+  isLocating: false,
+  locationError: null,
+
+  // Route Planner Initial States
   isRoutePlannerOpen: false,
   routeOriginId: 'node-ben-thanh',
   routeDestinationId: 'node-xuan-thuy-thao-dien',
@@ -93,12 +135,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   requestedRouteCount: 3,
   displayedRouteCount: 0,
 
-  // V4.3 Initial Snapshot & QA
+  // Initial Snapshot & QA
   priorMapStateSnapshot: null,
   qaUnknownFixtureEnabled: false,
 
   setDataState: (dataState) => set({ dataState }),
-  setSelectedRoadId: (id) => set({ selectedRoadId: id }),
+  setSelectedRoadId: (id) => {
+    if (id) {
+      set({ selectedRoadId: id, interactionMode: 'road-selected' });
+    } else {
+      set({
+        selectedRoadId: null,
+        interactionMode: get().isRoutePlannerOpen ? 'route-planning' : 'browse',
+      });
+    }
+  },
   setTimelineHour: (hour) => {
     const clamped = Math.min(Math.max(hour, 0), 24);
     set({ timelineHour: clamped });
@@ -128,7 +179,142 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMobileInspectorExpanded: (expanded) => set({ isMobileInspectorExpanded: expanded }),
   triggerResetCamera: () => set((state) => ({ cameraResetNonce: state.cameraResetNonce + 1 })),
 
-  // V4 & V4.3 Route Planner Actions with Snapshot & Restore (Phase 5 Spec)
+  // V5 Navigation Actions
+  setInteractionMode: (mode) => set({ interactionMode: mode }),
+
+  setOriginPlace: (place) => {
+    set({ originPlace: place });
+    if (place) {
+      const snap = snapCoordinatesToGraph(place.lng, place.lat);
+      const nodeId = place.routableNodeId || snap.nodeId;
+      set({ routeOriginId: nodeId });
+    }
+    get().recalculateRoutes();
+  },
+
+  setDestinationPlace: (place) => {
+    set({ destinationPlace: place });
+    if (place) {
+      const snap = snapCoordinatesToGraph(place.lng, place.lat);
+      const nodeId = place.routableNodeId || snap.nodeId;
+      const dist = place.routableSnapDistanceMeters ?? snap.distanceMeters;
+
+      let snapWarning: string | null = null;
+      if (place.isOutsideGraph || dist > 50) {
+        snapWarning = `Điểm đến nằm ngoài mạng đường được hỗ trợ. Tuyến được tính đến điểm gần nhất, cách đích ${dist} m.`;
+      }
+
+      set({
+        routeDestinationId: nodeId,
+        snapWarningNote: snapWarning,
+      });
+    } else {
+      set({ snapWarningNote: null });
+    }
+    get().recalculateRoutes();
+  },
+
+  setFloodModelPreference: (pref) => {
+    set({ floodModelPreference: pref });
+    if (get().isRoutePlannerOpen) get().recalculateRoutes();
+  },
+
+  setDataQualityPreference: (pref) => {
+    set({ dataQualityPreference: pref });
+    if (get().isRoutePlannerOpen) get().recalculateRoutes();
+  },
+
+  fetchUserLocation: async (target = 'origin') => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      const fallbackPlace: SearchPlace = {
+        id: 'user-fallback-location',
+        type: 'poi',
+        label: 'Vị trí mặc định (Quận 1 · Bến Thành)',
+        name: 'Vị trí mặc định (Quận 1 · Bến Thành)',
+        lng: 106.6983,
+        lat: 10.7725,
+        routableNodeId: 'node-ben-thanh',
+        routableSnapDistanceMeters: 0,
+        isOutsideGraph: false,
+      };
+      set({
+        locationError: 'Trình duyệt không hỗ trợ định vị GPS. Đang dùng vị trí Bến Thành (Quận 1).',
+      });
+      if (target === 'origin') {
+        get().setOriginPlace(fallbackPlace);
+      } else {
+        get().setDestinationPlace(fallbackPlace);
+      }
+      get().setRoutePlannerOpen(true);
+      return;
+    }
+
+    set({ isLocating: true, locationError: null });
+
+    return new Promise<void>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lng = pos.coords.longitude;
+          const lat = pos.coords.latitude;
+          const snap = snapCoordinatesToGraph(lng, lat);
+          const currentPlace: SearchPlace = {
+            id: 'user-current-location',
+            type: 'poi',
+            label: 'Vị trí của tôi (GPS)',
+            name: 'Vị trí của tôi (GPS)',
+            lng,
+            lat,
+            routableNodeId: snap.nodeId,
+            routableSnapDistanceMeters: snap.distanceMeters,
+            isOutsideGraph: snap.distanceMeters > 50,
+          };
+
+          set({
+            userCurrentLocation: { lng, lat, label: 'Vị trí của tôi (GPS)' },
+            isLocating: false,
+          });
+
+          if (target === 'origin') {
+            get().setOriginPlace(currentPlace);
+          } else {
+            get().setDestinationPlace(currentPlace);
+          }
+          get().setRoutePlannerOpen(true);
+          resolve();
+        },
+        (err) => {
+          console.warn('Geolocation warning, using central fallback:', err.message);
+          const fallbackPlace: SearchPlace = {
+            id: 'user-fallback-location',
+            type: 'poi',
+            label: 'Vị trí mặc định (Quận 1 · Bến Thành)',
+            name: 'Vị trí mặc định (Quận 1 · Bến Thành)',
+            lng: 106.6983,
+            lat: 10.7725,
+            routableNodeId: 'node-ben-thanh',
+            routableSnapDistanceMeters: 0,
+            isOutsideGraph: false,
+          };
+
+          set({
+            isLocating: false,
+            locationError: 'Không thể truy cập GPS. Đang dùng vị trí Bến Thành (Quận 1).',
+          });
+
+          if (target === 'origin') {
+            get().setOriginPlace(fallbackPlace);
+          } else {
+            get().setDestinationPlace(fallbackPlace);
+          }
+          get().setRoutePlannerOpen(true);
+          resolve();
+        },
+        { timeout: 7000, enableHighAccuracy: true }
+      );
+    });
+  },
+
+  // Route Planner Actions with Snapshot & Restore (Phase 1 & 5 Spec)
   setRoutePlannerOpen: (open) => {
     const current = get();
     if (open) {
@@ -137,10 +323,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedRoadId: current.selectedRoadId,
         timelineHour: current.timelineHour,
         activeLayers: { ...current.activeLayers },
+        interactionMode: current.interactionMode,
       };
       set({
         priorMapStateSnapshot: snapshot,
         isRoutePlannerOpen: true,
+        interactionMode: 'route-planning',
         selectedRoadId: null, // Clear single road inspector to prevent clutter
       });
       get().recalculateRoutes();
@@ -153,46 +341,65 @@ export const useAppStore = create<AppState>((set, get) => ({
           selectedRoadId: snapshot.selectedRoadId,
           timelineHour: snapshot.timelineHour,
           activeLayers: { ...snapshot.activeLayers },
+          interactionMode: snapshot.interactionMode === 'route-planning' ? 'browse' : snapshot.interactionMode,
           priorMapStateSnapshot: null,
           routeCandidates: [],
           selectedRouteCandidateId: null,
           routeOmissionNote: null,
           routeOmissionReason: null,
           displayedRouteCount: 0,
+          snapWarningNote: null,
         });
       } else {
         set({
           isRoutePlannerOpen: false,
+          interactionMode: 'browse',
           routeCandidates: [],
           selectedRouteCandidateId: null,
           routeOmissionNote: null,
           routeOmissionReason: null,
           displayedRouteCount: 0,
+          snapWarningNote: null,
         });
       }
     }
   },
+
   setRouteOriginId: (id) => {
     set({ routeOriginId: id });
     get().recalculateRoutes();
   },
+
   setRouteDestinationId: (id) => {
     set({ routeDestinationId: id });
     get().recalculateRoutes();
   },
+
   setSelectedVehicle: (vehicle) => {
     set({ selectedVehicle: vehicle });
     get().recalculateRoutes();
   },
+
   setSelectedRouteCandidateId: (id) => set({ selectedRouteCandidateId: id }),
+
   setQaUnknownFixtureEnabled: (enabled) => {
     set({ qaUnknownFixtureEnabled: enabled });
     if (get().isRoutePlannerOpen) {
       get().recalculateRoutes();
     }
   },
+
   recalculateRoutes: () => {
-    const { routeOriginId, routeDestinationId, selectedVehicle, timelineHour, qaUnknownFixtureEnabled } = get();
+    const {
+      routeOriginId,
+      routeDestinationId,
+      selectedVehicle,
+      timelineHour,
+      qaUnknownFixtureEnabled,
+      floodModelPreference,
+      dataQualityPreference,
+    } = get();
+
     if (!routeOriginId || !routeDestinationId || routeOriginId === routeDestinationId) {
       set({
         routeCandidates: [],
@@ -212,6 +419,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       vehicle: selectedVehicle,
       departureHour: timelineHour,
       qaUnknownFixture: qaUnknownFixtureEnabled,
+      floodModelPreference,
+      dataQualityPreference,
     });
 
     set({

@@ -259,7 +259,12 @@ export class ThreeFloodLayer implements CustomLayerInterface {
     this.scene.add(this.rainParticles);
   }
 
-  public updateData(snapshots: RoadFloodSnapshot[], activeLayers: ActiveLayers): void {
+  public updateData(
+    snapshots: RoadFloodSnapshot[],
+    activeLayers: ActiveLayers,
+    interactionMode: string = 'browse',
+    selectedRoadId: string | null = null
+  ): void {
     this.snapshots = snapshots;
     this.activeLayers = activeLayers;
 
@@ -270,9 +275,15 @@ export class ThreeFloodLayer implements CustomLayerInterface {
     snapshots.forEach((item) => {
       const entry = this.roadRibbons.get(item.road.id);
       if (entry) {
-        const visible = activeLayers.roadFlood;
-        entry.ribbonMesh.visible = visible;
-        entry.wallMesh.visible = visible;
+        let isRibbonVisible = false;
+        if (activeLayers.roadFlood) {
+          isRibbonVisible = true;
+        } else if (interactionMode === 'road-selected' && item.road.id === selectedRoadId) {
+          isRibbonVisible = true;
+        }
+
+        entry.ribbonMesh.visible = isRibbonVisible && activeLayers.is3D;
+        entry.wallMesh.visible = isRibbonVisible && activeLayers.is3D;
 
         const colors = this.getColorsByRisk(item.road.properties.riskLevel);
         entry.topMaterial.color.setHex(colors.topColor);

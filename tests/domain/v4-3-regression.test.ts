@@ -146,6 +146,7 @@ describe('V4.3 Route Unknown QA & Map State Stability (Spec: ROUTE-UNKNOWN-QA-PR
         selectedRoadId: 'road-nguyen-huu-canh',
         timelineHour: 0,
         activeLayers: openState.activeLayers,
+        interactionMode: 'browse',
       });
       expect(openState.routeCandidates.length).toBeGreaterThan(0);
 

@@ -76,7 +76,7 @@ describe('Flood Map HCMC App Component — Road-First V3', () => {
     const searchBtn = screen.getByLabelText('Tìm kiếm tuyến đường');
     fireEvent.click(searchBtn);
 
-    const input = screen.getByPlaceholderText('Tìm theo tên đường (Nguyễn Hữu Cảnh, Thảo Điền...)');
+    const input = screen.getByPlaceholderText('Tìm địa chỉ, số nhà, hẻm, địa điểm...');
     fireEvent.change(input, { target: { value: 'Thảo Điền' } });
 
     // Select Thảo Điền road

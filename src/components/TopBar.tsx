@@ -30,7 +30,7 @@ export const TopBar: React.FC = () => {
         <span className="search-placeholder">
           {persistedSearchQuery
             ? `Tuyến đường: ${persistedSearchQuery}`
-            : 'Tìm đường lớn (Nguyễn Hữu Cảnh, Thảo Điền...)'}
+            : 'Tìm địa chỉ, số nhà, hẻm, địa điểm...'}
         </span>
         <kbd className="search-kbd">⌘ K</kbd>
       </button>

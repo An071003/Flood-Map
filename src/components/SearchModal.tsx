@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { useAppStore } from '../stores/app-store';
 import { RoadWeatherService } from '../services/road-weather-service';
+import { searchPlaces } from '../services/geodata/hcmc-places-database';
+import { SearchPlace, SearchPlaceType } from '../types';
 
 export const SearchModal: React.FC = () => {
   const isSearchOpen = useAppStore((s) => s.isSearchOpen);
@@ -9,6 +11,12 @@ export const SearchModal: React.FC = () => {
   const setSearchQuery = useAppStore((s) => s.setSearchQuery);
   const setPersistedSearchQuery = useAppStore((s) => s.setPersistedSearchQuery);
   const setSelectedRoadId = useAppStore((s) => s.setSelectedRoadId);
+  const setOriginPlace = useAppStore((s) => s.setOriginPlace);
+  const setDestinationPlace = useAppStore((s) => s.setDestinationPlace);
+  const isRoutePlannerOpen = useAppStore((s) => s.isRoutePlannerOpen);
+  const setRoutePlannerOpen = useAppStore((s) => s.setRoutePlannerOpen);
+  const fetchUserLocation = useAppStore((s) => s.fetchUserLocation);
+  const isLocating = useAppStore((s) => s.isLocating);
   const timelineHour = useAppStore((s) => s.timelineHour);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -18,6 +26,12 @@ export const SearchModal: React.FC = () => {
     () => weatherService.getRoadSnapshots(timelineHour),
     [weatherService, timelineHour]
   );
+
+  const roadSnapshotMap = useMemo(() => {
+    const map = new Map<string, (typeof snapshots)[0]>();
+    snapshots.forEach((s) => map.set(s.road.id, s));
+    return map;
+  }, [snapshots]);
 
   // Global hotkeys: Command/Ctrl + K and Escape
   useEffect(() => {
@@ -41,22 +55,58 @@ export const SearchModal: React.FC = () => {
     }
   }, [isSearchOpen]);
 
-  // Road-first search matching
-  const filteredRoads = useMemo(() => {
-    if (!searchQuery.trim()) return snapshots;
-    const q = searchQuery.toLowerCase().trim();
-    return snapshots.filter(
-      (s) =>
-        s.road.properties.roadName.toLowerCase().includes(q) ||
-        s.road.properties.district.toLowerCase().includes(q)
-    );
-  }, [snapshots, searchQuery]);
+  // V5 Multi-category place search (Addresses, Alleys, Roads, POIs, Intersections)
+  const searchResults: SearchPlace[] = useMemo(() => {
+    return searchPlaces(searchQuery);
+  }, [searchQuery]);
 
-  const handleSelectRoad = (roadId: string, roadName: string) => {
-    setSelectedRoadId(roadId);
-    // Persist query so the searched term remains visible
-    setPersistedSearchQuery(searchQuery.trim() || roadName);
+  const handleViewFlood = (place: SearchPlace) => {
+    if (isRoutePlannerOpen) {
+      setRoutePlannerOpen(false);
+    }
+    if (place.linkedRoadId) {
+      setSelectedRoadId(place.linkedRoadId);
+    }
+    setPersistedSearchQuery(searchQuery.trim() || place.name || place.label);
     setSearchOpen(false);
+  };
+
+  const handleSetOrigin = (place: SearchPlace) => {
+    setOriginPlace(place);
+    if (!isRoutePlannerOpen) {
+      setRoutePlannerOpen(true);
+    }
+    setSearchOpen(false);
+  };
+
+  const handleSetDestination = (place: SearchPlace) => {
+    setDestinationPlace(place);
+    if (!isRoutePlannerOpen) {
+      setRoutePlannerOpen(true);
+    }
+    setSearchOpen(false);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    await fetchUserLocation('origin');
+    setSearchOpen(false);
+  };
+
+  const renderTypeBadge = (type: SearchPlaceType) => {
+    switch (type) {
+      case 'address':
+        return <span className="search-type-badge address">Số nhà</span>;
+      case 'alley':
+        return <span className="search-type-badge alley">Hẻm</span>;
+      case 'road':
+        return <span className="search-type-badge road">Đường</span>;
+      case 'poi':
+        return <span className="search-type-badge poi">Địa điểm</span>;
+      case 'intersection':
+        return <span className="search-type-badge intersection">Giao lộ</span>;
+      default:
+        return null;
+    }
   };
 
   if (!isSearchOpen) return null;
@@ -67,7 +117,7 @@ export const SearchModal: React.FC = () => {
       onClick={() => setSearchOpen(false)}
       role="dialog"
       aria-modal="true"
-      aria-label="Tìm kiếm tuyến đường"
+      aria-label="Tìm kiếm địa chỉ, địa điểm và tuyến đường"
     >
       <div className="search-modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="search-modal-header">
@@ -76,15 +126,17 @@ export const SearchModal: React.FC = () => {
             ref={inputRef}
             type="text"
             className="search-modal-input"
-            placeholder="Tìm theo tên đường (Nguyễn Hữu Cảnh, Thảo Điền...)"
+            placeholder="Tìm địa chỉ, số nhà, hẻm, địa điểm..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && filteredRoads.length > 0) {
-                handleSelectRoad(
-                  filteredRoads[0].road.id,
-                  filteredRoads[0].road.properties.roadName
-                );
+              if (e.key === 'Enter' && searchResults.length > 0) {
+                const first = searchResults[0];
+                if (first.linkedRoadId) {
+                  handleViewFlood(first);
+                } else {
+                  handleSetDestination(first);
+                }
               }
             }}
           />
@@ -102,43 +154,106 @@ export const SearchModal: React.FC = () => {
           </kbd>
         </div>
 
+        {/* Quick GPS Geolocation Button */}
+        <div className="search-quick-actions">
+          <button
+            type="button"
+            className="my-location-search-btn"
+            disabled={isLocating}
+            onClick={handleUseCurrentLocation}
+          >
+            <span className="location-icon" aria-hidden="true">📍</span>
+            <span>
+              {isLocating ? 'Đang lấy tọa độ GPS...' : 'Vị trí của tôi (Dùng làm điểm xuất phát)'}
+            </span>
+          </button>
+        </div>
+
         <div className="search-modal-results">
-          {filteredRoads.length === 0 ? (
+          {searchResults.length === 0 ? (
             <div className="search-empty-state">
-              Không tìm thấy tuyến đường nào khớp với từ khóa "{searchQuery}". Hãy thử tìm "Nguyễn Hữu Cảnh" hoặc "Thảo Điền".
+              Không tìm thấy địa điểm hoặc số nhà khớp với "{searchQuery}". Hãy thử "123 Nguyễn Xí", "Hẻm 48 Điện Biên Phủ", "Bến Thành", hoặc "Thảo Điền".
             </div>
           ) : (
-            filteredRoads.map((item) => {
-              const road = item.road;
-              const p = road.properties;
+            searchResults.map((place) => {
+              const roadSnap = place.linkedRoadId ? roadSnapshotMap.get(place.linkedRoadId) : undefined;
+              const hasSnapWarning = place.routableSnapDistanceMeters && place.routableSnapDistanceMeters > 50;
+
               return (
                 <div
-                  key={road.id}
+                  key={place.id}
                   className="search-result-item"
-                  onClick={() => handleSelectRoad(road.id, p.roadName)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSelectRoad(road.id, p.roadName);
+                  onClick={() => {
+                    if (place.linkedRoadId) {
+                      handleViewFlood(place);
+                    } else {
+                      handleSetDestination(place);
                     }
                   }}
+                  role="button"
+                  tabIndex={0}
                 >
                   <div className="result-main">
-                    <strong>{p.roadName}</strong>
-                    <span>{p.district}</span>
+                    <div className="result-title-row">
+                      {renderTypeBadge(place.type)}
+                      <strong className="result-name">{place.name || place.label}</strong>
+                      {hasSnapWarning && (
+                        <span
+                          className="search-snap-badge"
+                          title="Nằm trong hẻm hoặc ngoài mạng đường xe cơ giới chính"
+                        >
+                          Cách đường lớn {place.routableSnapDistanceMeters}m
+                        </span>
+                      )}
+                    </div>
+                    <span className="result-district">{place.district}</span>
                   </div>
-                  <div className="result-meta">
-                    <span className={`result-badge ${p.riskLevel}`}>
-                      {p.riskLevel === 'severe'
-                        ? 'Nghiêm trọng'
-                        : p.riskLevel === 'warning'
-                        ? 'Cảnh báo'
-                        : p.riskLevel === 'watch'
-                        ? 'Theo dõi'
-                        : 'An toàn'}
-                    </span>
-                    <span className="result-depth">{p.estimatedDepthCm} cm</span>
+
+                  {roadSnap && (
+                    <div className="result-meta">
+                      <span className={`result-badge ${roadSnap.road.properties.riskLevel}`}>
+                        {roadSnap.road.properties.riskLevel === 'severe'
+                          ? 'Nghiêm trọng'
+                          : roadSnap.road.properties.riskLevel === 'warning'
+                          ? 'Cảnh báo'
+                          : roadSnap.road.properties.riskLevel === 'watch'
+                          ? 'Theo dõi'
+                          : 'An toàn'}
+                      </span>
+                      <span className="result-depth">
+                        {roadSnap.road.properties.estimatedDepthCm} cm
+                      </span>
+                    </div>
+                  )}
+
+                  {/* V5 Action Buttons */}
+                  <div
+                    className="search-result-actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {place.linkedRoadId && (
+                      <button
+                        type="button"
+                        className="search-act-btn view-flood"
+                        onClick={() => handleViewFlood(place)}
+                      >
+                        Xem ngập
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="search-act-btn set-origin"
+                      onClick={() => handleSetOrigin(place)}
+                    >
+                      Đi từ đây
+                    </button>
+                    <button
+                      type="button"
+                      className="search-act-btn set-destination"
+                      onClick={() => handleSetDestination(place)}
+                    >
+                      Đi đến đây
+                    </button>
                   </div>
                 </div>
               );

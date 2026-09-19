@@ -1,15 +1,18 @@
-# Flood Map HCMC — V4.3 Route QA + Map State Stability
+# Flood Map HCMC — V5 Navigation UX
 
-Patch này chỉ xử lý 4 việc:
-1. Tạo route fixture có UNKNOWN thật để verify coverage <100%.
-2. Thêm legend `Chưa đủ dữ liệu`.
-3. Thêm lý do khi chỉ có 1–2 route candidate.
-4. Audit/fix route mode có unmount hoặc hide core map hay không.
+V5 đổi product interaction từ flood-dashboard sang navigation-first flood assistant.
 
-Run order:
-1. AGENT-V4.3.md
-2. REVIEW-V4.3-PROMPT.md
-3. IMPLEMENT-V4.3-PROMPT.md
-4. ROUTE-UNKNOWN-QA-PROMPT.md
-5. MAP-STATE-QA-PROMPT.md
-6. RELEASE-V4.3-PROMPT.md
+## Mục tiêu
+1. Map mặc định sạch, không tô màu ngập trên toàn bộ road.
+2. Chỉ khi chọn đường mới hiện dự đoán/evaluation của đường đó.
+3. Khi định tuyến, chỉ route candidates được nhấn mạnh; selected route hiển thị flood theo segment.
+4. Search hỗ trợ road / address / số nhà / hẻm / POI / intersection / current location.
+5. Route filters gồm vehicle / forecast / strategy / flood preference / data quality.
+
+## Run order
+1. `AGENT-V5.md`
+2. `REVIEW-V5-PROMPT.md`
+3. `IMPLEMENT-V5-PROMPT.md`
+4. `SEARCH-GEOCODING-QA-PROMPT.md`
+5. `NAVIGATION-VISUAL-QA-PROMPT.md`
+6. `RELEASE-V5-PROMPT.md`

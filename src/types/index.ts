@@ -269,6 +269,32 @@ export interface RouteCandidate {
   };
 }
 
+export type AppInteractionMode = 'browse' | 'road-selected' | 'route-planning';
+
+export type SearchPlaceType = 'address' | 'road' | 'alley' | 'poi' | 'intersection';
+
+export interface SearchPlace {
+  id: string;
+  type: SearchPlaceType;
+  label: string;
+  name?: string;
+  houseNumber?: string;
+  street?: string;
+  alley?: string;
+  ward?: string;
+  district?: string;
+  lng: number;
+  lat: number;
+  linkedRoadId?: string;
+  routableSegmentId?: string;
+  routableSnapDistanceMeters?: number;
+  routableNodeId?: string;
+  isOutsideGraph?: boolean;
+}
+
+export type FloodModelPreference = 'auto' | 'cautious' | 'standard';
+export type DataQualityPreference = 'all' | 'high_coverage_only';
+
 export interface RoutePlanResult {
   candidates: RouteCandidate[];
   omissionReason?: CandidateOmissionReason;
@@ -284,5 +310,8 @@ export interface RouteRequest {
   departureHour: number;
   diversityThreshold?: number;
   qaUnknownFixture?: boolean;
+  preferredStrategy?: RouteStrategy;
+  floodModelPreference?: FloodModelPreference;
+  dataQualityPreference?: DataQualityPreference;
 }
 

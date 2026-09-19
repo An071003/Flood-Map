@@ -39,6 +39,7 @@ export const MapStage: React.FC = () => {
   const activeLayers = useAppStore((s) => s.activeLayers);
   const cameraResetNonce = useAppStore((s) => s.cameraResetNonce);
   const isRoutePlannerOpen = useAppStore((s) => s.isRoutePlannerOpen);
+  const interactionMode = useAppStore((s) => s.interactionMode);
   const routeCandidates = useAppStore((s) => s.routeCandidates);
   const selectedRouteCandidateId = useAppStore((s) => s.selectedRouteCandidateId);
 
@@ -63,6 +64,22 @@ export const MapStage: React.FC = () => {
       const [lng, lat] = road.properties.anchorPoint;
       const inBounds = bounds.contains([lng, lat]);
       const pt = map.project([lng, lat]);
+      const isSelected = road.id === selectedRoadId;
+      const isSevere = road.properties.riskLevel === 'severe';
+
+      let visible = false;
+      if (inBounds) {
+        if (interactionMode === 'road-selected') {
+          // In road-selected mode: show the selected road's pin (and severe alerts if zoomed)
+          visible = isSelected || (isSevere && zoom >= 12.2);
+        } else if (interactionMode === 'route-planning') {
+          // In route planning: route endpoints A & B are dominant; suppress road pins
+          visible = false;
+        } else {
+          // In browse mode: only show severe alert pins or when zoomed in closely with weatherLabels
+          visible = (isSevere && zoom >= 11.2) || (activeLayers.weatherLabels && zoom >= 13.5);
+        }
+      }
 
       return {
         id: road.id,
@@ -73,12 +90,64 @@ export const MapStage: React.FC = () => {
         condition: item.weather.condition,
         x: pt.x,
         y: pt.y,
-        visible: inBounds && zoom >= 11.2,
+        visible,
       };
     });
 
     setScreenMarkers(markers);
-  }, [snapshots]);
+  }, [snapshots, interactionMode, selectedRoadId, activeLayers.weatherLabels]);
+
+  // Helper functions for V5 Navigation-first road styling
+  const getRoadColorExpression = (roadFloodActive: boolean, mode: string, selRoadId: string | null) => {
+    const severityMatch = [
+      'match',
+      ['get', 'riskLevel'],
+      'severe',
+      '#ff5d73',
+      'warning',
+      '#ff9f43',
+      'watch',
+      '#38bdf8',
+      'safe',
+      '#2fd39a',
+      '#2fd39a',
+    ];
+
+    if (roadFloodActive) {
+      return severityMatch;
+    }
+    if (mode === 'road-selected' && selRoadId) {
+      return ['case', ['==', ['get', 'id'], selRoadId], severityMatch, '#26384f'];
+    }
+    return '#26384f';
+  };
+
+  const getRoadWidthExpression = (roadFloodActive: boolean, mode: string, selRoadId: string | null) => {
+    if (roadFloodActive) {
+      return [
+        'interpolate',
+        ['linear'],
+        ['get', 'depthCm'],
+        0,
+        4,
+        15,
+        5.5,
+        30,
+        7,
+        50,
+        9,
+      ];
+    }
+    if (mode === 'road-selected' && selRoadId) {
+      return [
+        'case',
+        ['==', ['get', 'id'], selRoadId],
+        ['interpolate', ['linear'], ['get', 'depthCm'], 0, 5, 15, 6.5, 30, 8, 50, 10],
+        3.5,
+      ];
+    }
+    return 3.5;
+  };
 
   // Initialize MapLibre GL
   useEffect(() => {
@@ -131,54 +200,72 @@ export const MapStage: React.FC = () => {
         type: 'fill',
         source: 'hcmc-boundary-polygon',
         paint: {
-          'fill-color': '#0284c7',
+          'fill-color': '#38bdf8',
           'fill-opacity': 0.04,
         },
       });
 
-      // 3. HCMC Administrative Boundary Stroke
+      // 2b. HCMC Outer Administrative Boundary Cyan Neon Glow Line
       map.addSource('hcmc-boundary-line', {
         type: 'geojson',
         data: HCMC_BOUNDARY_LINE_GEOJSON,
       });
 
       map.addLayer({
-        id: 'hcmc-boundary-stroke',
+        id: 'hcmc-boundary-glow',
         type: 'line',
         source: 'hcmc-boundary-line',
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
         paint: {
-          'line-color': '#22d3ee',
-          'line-width': 2.2,
-          'line-opacity': 0.85,
-          'line-dasharray': [3, 2],
+          'line-color': '#00d2ff',
+          'line-width': 10,
+          'line-opacity': 0.25,
+          'line-blur': 6,
         },
       });
 
-      // 3. Road Segments GeoJSON
-      const roadFeatures = snapshots.map((s) => ({
-        type: 'Feature' as const,
-        id: s.road.id,
-        properties: {
-          id: s.road.id,
-          roadName: s.road.properties.roadName,
-          district: s.road.properties.district,
-          riskLevel: s.road.properties.riskLevel,
-          depthCm: s.road.properties.estimatedDepthCm,
+      map.addLayer({
+        id: 'hcmc-boundary-stroke',
+        type: 'line',
+        source: 'hcmc-boundary-line',
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
         },
-        geometry: s.road.geometry,
-      }));
+        paint: {
+          'line-color': '#38bdf8',
+          'line-width': 2.5,
+          'line-opacity': 0.95,
+          'line-dasharray': [3, 1],
+        },
+      });
 
+      // 3. Roads GeoJSON Data Source
       map.addSource('hcmc-roads', {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
-          features: roadFeatures,
+          features: snapshots.map((s) => ({
+            type: 'Feature',
+            id: s.road.id,
+            properties: {
+              id: s.road.id,
+              roadName: s.road.properties.roadName,
+              district: s.road.properties.district,
+              riskLevel: s.road.properties.riskLevel,
+              depthCm: s.road.properties.estimatedDepthCm,
+            },
+            geometry: s.road.geometry,
+          })),
         },
       });
 
-      // Road background casing
+      // Road base underlay line
       map.addLayer({
-        id: 'hcmc-roads-casing',
+        id: 'hcmc-roads-base',
         type: 'line',
         source: 'hcmc-roads',
         layout: {
@@ -192,7 +279,7 @@ export const MapStage: React.FC = () => {
         },
       });
 
-      // Road flood colored line
+      // Road flood colored line (neutral slate unless selected or global flood overlay active)
       map.addLayer({
         id: 'hcmc-roads-line',
         type: 'line',
@@ -202,30 +289,16 @@ export const MapStage: React.FC = () => {
           'line-join': 'round',
         },
         paint: {
-          'line-color': [
-            'match',
-            ['get', 'riskLevel'],
-            'severe',
-            '#ff5d73',
-            'warning',
-            '#ff9f43',
-            'watch',
-            '#38bdf8',
-            '#2fd39a',
-          ],
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['get', 'depthCm'],
-            0,
-            4,
-            15,
-            5.5,
-            30,
-            7,
-            50,
-            9,
-          ],
+          'line-color': getRoadColorExpression(
+            activeLayers.roadFlood,
+            interactionMode,
+            selectedRoadId
+          ) as unknown as maplibregl.ExpressionSpecification,
+          'line-width': getRoadWidthExpression(
+            activeLayers.roadFlood,
+            interactionMode,
+            selectedRoadId
+          ) as unknown as maplibregl.ExpressionSpecification,
           'line-opacity': 0.9,
         },
       });
@@ -248,12 +321,24 @@ export const MapStage: React.FC = () => {
         },
       });
 
-      // Click on road
+      // Click on road to select and focus
       map.on('click', 'hcmc-roads-line', (e) => {
         if (e.features && e.features.length > 0) {
           const roadId = e.features[0].properties?.id;
           if (roadId) {
-            setSelectedRoadId(roadId);
+            useAppStore.getState().setSelectedRoadId(roadId);
+          }
+        }
+      });
+
+      // Click on canvas background to clear selection
+      map.on('click', (e) => {
+        const checkLayers = ['hcmc-roads-line', 'hcmc-route-selected-line', 'hcmc-route-alternatives-line'].filter((id) => map.getLayer(id));
+        const features = map.queryRenderedFeatures(e.point, { layers: checkLayers });
+        if (features.length === 0) {
+          const currentMode = useAppStore.getState().interactionMode;
+          if (currentMode === 'road-selected') {
+            useAppStore.getState().setSelectedRoadId(null);
           }
         }
       });
@@ -277,9 +362,9 @@ export const MapStage: React.FC = () => {
         source: 'hcmc-route-alternatives',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#94a3b8',
-          'line-width': 5,
-          'line-opacity': 0.45,
+          'line-color': '#64748b',
+          'line-width': 4.5,
+          'line-opacity': 0.5,
           'line-dasharray': [2, 2],
         },
       });
@@ -294,9 +379,9 @@ export const MapStage: React.FC = () => {
         source: 'hcmc-route-selected',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#020914',
-          'line-width': 12,
-          'line-opacity': 0.9,
+          'line-color': '#0284c7',
+          'line-width': 11,
+          'line-opacity': 0.85,
         },
       });
       map.addLayer({
@@ -433,7 +518,7 @@ export const MapStage: React.FC = () => {
       threeLayerRef.current = threeLayer;
       map.addLayer(threeLayer);
 
-      threeLayer.updateData(snapshots, activeLayers);
+      threeLayer.updateData(snapshots, activeLayers, interactionMode, selectedRoadId);
 
       updateMarkerPositions();
     });
@@ -452,7 +537,7 @@ export const MapStage: React.FC = () => {
   // Update Three.js layer and GeoJSON when snapshots change
   useEffect(() => {
     if (threeLayerRef.current) {
-      threeLayerRef.current.updateData(snapshots, activeLayers);
+      threeLayerRef.current.updateData(snapshots, activeLayers, interactionMode, selectedRoadId);
     }
 
     const map = mapRef.current;
@@ -474,6 +559,20 @@ export const MapStage: React.FC = () => {
             geometry: s.road.geometry,
           })),
         });
+      }
+
+      // Update road line paint properties according to mode and flood layer toggle
+      if (map.getLayer('hcmc-roads-line')) {
+        map.setPaintProperty(
+          'hcmc-roads-line',
+          'line-color',
+          getRoadColorExpression(activeLayers.roadFlood, interactionMode, selectedRoadId) as unknown as maplibregl.ExpressionSpecification
+        );
+        map.setPaintProperty(
+          'hcmc-roads-line',
+          'line-width',
+          getRoadWidthExpression(activeLayers.roadFlood, interactionMode, selectedRoadId) as unknown as maplibregl.ExpressionSpecification
+        );
       }
 
       // Update selected road filter
@@ -499,7 +598,7 @@ export const MapStage: React.FC = () => {
     }
 
     updateMarkerPositions();
-  }, [snapshots, activeLayers, selectedRoadId, updateMarkerPositions]);
+  }, [snapshots, activeLayers, selectedRoadId, interactionMode, updateMarkerPositions]);
 
   // Smooth camera flight when selectedRoadId changes
   useEffect(() => {

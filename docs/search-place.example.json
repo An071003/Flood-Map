@@ -1,0 +1,14 @@
+{
+  "id": "example-address",
+  "type": "address",
+  "label": "123 Nguyễn Hữu Cảnh, Bình Thạnh",
+  "houseNumber": "123",
+  "street": "Nguyễn Hữu Cảnh",
+  "ward": "Phường 22",
+  "district": "Bình Thạnh",
+  "lng": null,
+  "lat": null,
+  "routableSegmentId": null,
+  "routableSnapDistanceMeters": null,
+  "note": "Schema example only. Do not invent production coordinates."
+}
