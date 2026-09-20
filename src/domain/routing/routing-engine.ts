@@ -1,5 +1,6 @@
 import {
   CandidateOmissionReason,
+  FloodModelPreference,
   GraphRoadSegment,
   RoadNode,
   RouteCandidate,
@@ -199,7 +200,14 @@ export class RoutingEngine {
    * Guaranteed to discover distinct corridors when they exist, without inventing fake duplicates.
    */
   public findRoutes(req: RouteRequest): RouteCandidate[] {
-    const { originNodeId, destinationNodeId, vehicle, departureHour } = req;
+    const {
+      originNodeId,
+      destinationNodeId,
+      vehicle,
+      departureHour,
+      floodModelPreference,
+      customMaxDepthCm,
+    } = req;
     const isQaUnknown = Boolean(req.qaUnknownFixture);
     this.lastOmissionNote = null;
     this.lastOmissionReason = null;
@@ -220,7 +228,9 @@ export class RoutingEngine {
       departureHour,
       profile,
       edgePenalties,
-      isQaUnknown
+      isQaUnknown,
+      floodModelPreference,
+      customMaxDepthCm
     );
 
     if (!path1 || path1.length === 0) {
@@ -242,6 +252,9 @@ export class RoutingEngine {
           if (f.estimatedDepthCm > maxDepth) maxDepth = f.estimatedDepthCm;
           if (f.riskLevel === 'severe') hasSevere = true;
         }
+      }
+      if (customMaxDepthCm !== undefined && maxDepth > customMaxDepthCm) {
+        return 'flood_blocked';
       }
       const impassableDepth = profile.type === 'motorbike' ? 25 : 35;
       if (maxDepth >= 40 || (hasSevere && maxDepth >= 35)) {
@@ -280,7 +293,9 @@ export class RoutingEngine {
       departureHour,
       profile,
       edgePenalties,
-      isQaUnknown
+      isQaUnknown,
+      floodModelPreference,
+      customMaxDepthCm
     );
 
     if (path2 && path2.length > 0) {
@@ -308,7 +323,9 @@ export class RoutingEngine {
       departureHour,
       profile,
       edgePenalties,
-      isQaUnknown
+      isQaUnknown,
+      floodModelPreference,
+      customMaxDepthCm
     );
 
     if (path3 && path3.length > 0) {
@@ -344,14 +361,14 @@ export class RoutingEngine {
 
     if (distinctPaths.length === 1) {
       // Exactly 1 physical corridor exists
-      const cand = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
+      const cand = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0, floodModelPreference);
       cand.omissionNote = omissionNote;
       cand.omissionReason = this.lastOmissionReason || undefined;
       candidates.push(cand);
     } else if (distinctPaths.length === 2) {
       // 2 distinct corridors: Drier one is LEAST_FLOOD, faster one is BALANCED
-      const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
-      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1);
+      const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0, floodModelPreference);
+      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1, floodModelPreference);
       cand1.omissionNote = omissionNote;
       cand1.omissionReason = this.lastOmissionReason || undefined;
       cand2.omissionNote = omissionNote;
@@ -359,9 +376,9 @@ export class RoutingEngine {
       candidates.push(cand1, cand2);
     } else {
       // 3 distinct corridors: LEAST_FLOOD, BALANCED, FASTEST
-      const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0);
-      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1);
-      const cand3 = evaluateRoute(distinctPaths[2], 'FASTEST', departureHour, profile, 2);
+      const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0, floodModelPreference);
+      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1, floodModelPreference);
+      const cand3 = evaluateRoute(distinctPaths[2], 'FASTEST', departureHour, profile, 2, floodModelPreference);
       candidates.push(cand1, cand2, cand3);
     }
 
@@ -392,7 +409,9 @@ export class RoutingEngine {
     hour: number,
     profile = VEHICLE_PROFILES.motorbike,
     edgePenalties = new Map<string, number>(),
-    qaUnknown = false
+    qaUnknown = false,
+    floodModelPreference?: FloodModelPreference,
+    customMaxDepthCm?: number
   ): GraphRoadSegment[] | null {
     const distances = new Map<string, number>();
     const previous = new Map<
@@ -446,7 +465,14 @@ export class RoutingEngine {
         if (!unvisited.has(edge.targetNodeId)) continue;
 
         const seg = applySegmentFixtureOverrides(edge.segment, qaUnknown);
-        const baseCost = calculateSegmentCost(seg, profile, hour, strategy);
+        const baseCost = calculateSegmentCost(
+          seg,
+          profile,
+          hour,
+          strategy,
+          floodModelPreference,
+          customMaxDepthCm
+        );
         const diversityMultiplier = edgePenalties.get(seg.id) || 1;
         const edgeCost = baseCost * diversityMultiplier;
         const newDist = minDistance + edgeCost;

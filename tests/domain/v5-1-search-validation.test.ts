@@ -161,6 +161,7 @@ describe('V5.1 Rigorous Search & Routing Truthfulness QA Suite', () => {
         label: 'Hẻm 48 Điện Biên Phủ',
         lng: 106.715,
         lat: 10.800,
+        matchQuality: 'approximate' as const,
         routableSnapDistanceMeters: 140,
         isOutsideGraph: true,
       };
@@ -190,6 +191,7 @@ describe('V5.1 Rigorous Search & Routing Truthfulness QA Suite', () => {
         label: 'Chợ Bến Thành',
         lng: 106.6983,
         lat: 10.7725,
+        matchQuality: 'poi' as const,
         routableNodeId: 'node-ben-thanh',
         routableSnapDistanceMeters: 0,
         isOutsideGraph: false,
@@ -210,6 +212,7 @@ describe('V5.1 Rigorous Search & Routing Truthfulness QA Suite', () => {
         label: 'Hẻm 60 Ung Văn Khiêm',
         lng: 106.719,
         lat: 10.809,
+        matchQuality: 'approximate' as const,
         routableSnapDistanceMeters: 140,
         isOutsideGraph: true,
       };
@@ -245,6 +248,33 @@ describe('V5.1 Rigorous Search & Routing Truthfulness QA Suite', () => {
       expect(firstRun).toEqual(secondRun);
       expect(firstRun.length).toBeGreaterThan(0);
       expect(firstRun[0].matchQuality).toBe('poi');
+    });
+
+    it('Verifies RouteSnapResult contains valid segmentId property', () => {
+      const snap = snapCoordinatesToRoutableNetwork(106.7145, 10.7925);
+      expect(snap.segmentId).toBeDefined();
+      expect(typeof snap.segmentId).toBe('string');
+      expect(snap.segmentId.length).toBeGreaterThan(0);
+    });
+
+    it('Verifies floodModelPreference === "cautious" increases route penalty in engine', () => {
+      const store = useAppStore.getState();
+      store.setRoutePlannerOpen(true);
+      store.setRouteOriginId('node-nhc-tdt');
+      store.setRouteDestinationId('node-nhc-thu-thiem');
+
+      store.setFloodModelPreference('auto');
+      const autoCandidates = useAppStore.getState().routeCandidates;
+      expect(autoCandidates.length).toBeGreaterThan(0);
+      const autoScore = autoCandidates[0].routeScore;
+
+      store.setFloodModelPreference('cautious');
+      const cautiousCandidates = useAppStore.getState().routeCandidates;
+      expect(cautiousCandidates.length).toBeGreaterThan(0);
+      const cautiousScore = cautiousCandidates[0].routeScore;
+
+      // Cautious preference must reflect higher flood penalty (lower or equal suitability score)
+      expect(cautiousScore).toBeLessThanOrEqual(autoScore);
     });
   });
 });

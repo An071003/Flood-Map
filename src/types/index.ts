@@ -287,7 +287,7 @@ export interface SearchPlace {
   district?: string;
   lng: number;
   lat: number;
-  matchQuality?: SearchMatchQuality;
+  matchQuality: SearchMatchQuality;
   source?: string;
   linkedRoadId?: string;
   routableSegmentId?: string;
@@ -304,7 +304,7 @@ export interface RouteSnapResult {
   snappedLng: number;
   snappedLat: number;
   nodeId: string;
-  segmentId?: string;
+  segmentId: string;
   distanceMeters: number;
   status: RouteSnapStatus;
 }

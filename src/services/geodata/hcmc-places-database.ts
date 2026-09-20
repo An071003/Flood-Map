@@ -4,7 +4,7 @@ import {
   RouteSnapResult,
   RouteSnapStatus,
 } from '../../types';
-import { HCMC_ROAD_NODES } from './hcmc-graph-network';
+import { HCMC_ROAD_NODES, HCMC_GRAPH_SEGMENTS } from './hcmc-graph-network';
 import { MAJOR_HCMC_ROADS } from './hcmc-roads';
 
 /**
@@ -447,12 +447,18 @@ export function snapCoordinatesToRoutableNetwork(
     status = 'unsupported';
   }
 
+  const incidentSeg = HCMC_GRAPH_SEGMENTS.find(
+    (s) => s.fromNodeId === bestNode.id || s.toNodeId === bestNode.id
+  );
+  const segmentId = incidentSeg ? incidentSeg.id : `seg-${bestNode.id}`;
+
   return {
     inputLng: lng,
     inputLat: lat,
     snappedLng: bestNode.lng,
     snappedLat: bestNode.lat,
     nodeId: bestNode.id,
+    segmentId,
     distanceMeters,
     status,
   };
@@ -511,7 +517,7 @@ export const HCMC_ROAD_SEARCH_PLACES: SearchPlace[] = (MAJOR_HCMC_ROADS || []).m
     type: 'road',
     label: r.properties.roadName,
     name: r.properties.roadName,
-    secondaryLabel: `${r.properties.roadName} · Định vị theo tim đường`,
+    secondaryLabel: `${r.properties.roadName} · kết quả theo tuyến đường (Định vị theo tim đường)`,
     street: r.properties.roadName,
     district: r.properties.district,
     lng: r.properties.anchorPoint[0],
@@ -520,6 +526,7 @@ export const HCMC_ROAD_SEARCH_PLACES: SearchPlace[] = (MAJOR_HCMC_ROADS || []).m
     matchQuality: 'street-level',
     source: 'osm-major-roads',
     routableNodeId: snap.nodeId,
+    routableSegmentId: snap.segmentId,
     routableSnapDistanceMeters: snap.distanceMeters,
     isOutsideGraph: false,
   };
@@ -568,6 +575,7 @@ export function parseAddressQuery(query: string): SearchPlace | null {
         matchQuality: 'approximate',
         source: 'dynamic-alley-parser',
         routableNodeId: snap.nodeId,
+        routableSegmentId: snap.segmentId,
         routableSnapDistanceMeters: Math.max(120, snap.distanceMeters),
         isOutsideGraph: true,
       };
@@ -604,6 +612,7 @@ export function parseAddressQuery(query: string): SearchPlace | null {
         matchQuality: 'approximate',
         source: 'dynamic-address-parser',
         routableNodeId: snap.nodeId,
+        routableSegmentId: snap.segmentId,
         routableSnapDistanceMeters: Math.max(60, snap.distanceMeters),
         isOutsideGraph: snap.distanceMeters > 50,
       };

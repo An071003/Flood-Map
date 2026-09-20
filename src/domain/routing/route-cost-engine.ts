@@ -5,6 +5,7 @@ import {
   RouteEvaluation,
   RouteStrategy,
   VehicleProfile,
+  FloodModelPreference,
 } from '../../types';
 import { getDepthPenalty } from './vehicle-profiles';
 
@@ -39,7 +40,9 @@ export function calculateSegmentCost(
   segment: GraphRoadSegment,
   profile: VehicleProfile,
   hour: number,
-  strategy: RouteStrategy
+  strategy: RouteStrategy,
+  floodModelPreference?: FloodModelPreference,
+  customMaxDepthCm?: number
 ): number {
   const weights = STRATEGY_WEIGHTS[strategy];
   const timeCost = segment.estimatedTravelSeconds * weights.timeWeight;
@@ -48,7 +51,10 @@ export function calculateSegmentCost(
 
   if (!floodState || floodState.status === 'unknown') {
     // UNKNOWN Rule: Never assume 0 cm. Apply vehicle unknown penalty.
-    const unknownCost = profile.unknownPenalty * weights.unknownWeight;
+    let unknownCost = profile.unknownPenalty * weights.unknownWeight;
+    if (floodModelPreference === 'cautious') {
+      unknownCost *= 1.4;
+    }
     return timeCost + unknownCost;
   }
 
@@ -62,7 +68,17 @@ export function calculateSegmentCost(
     riskPen = profile.warningPenalty;
   }
 
-  const floodCost = (depthPen + riskPen) * weights.floodWeight;
+  let floodMultiplier = weights.floodWeight;
+  if (floodModelPreference === 'cautious') {
+    floodMultiplier *= 1.6;
+  }
+
+  let thresholdPenalty = 0;
+  if (customMaxDepthCm !== undefined && depth > customMaxDepthCm) {
+    thresholdPenalty = 5000 + (depth - customMaxDepthCm) * 200;
+  }
+
+  const floodCost = (depthPen + riskPen) * floodMultiplier + thresholdPenalty;
   return timeCost + floodCost;
 }
 
@@ -74,7 +90,8 @@ export function evaluateRoute(
   strategy: RouteStrategy,
   hour: number,
   profile: VehicleProfile,
-  candidateIndex = 0
+  candidateIndex = 0,
+  floodModelPreference?: FloodModelPreference
 ): RouteCandidate {
   let totalDistanceMeters = 0;
   let rawTravelSeconds = 0;
@@ -168,10 +185,13 @@ export function evaluateRoute(
   if (hasKnownDepth && maxDepthCm !== undefined) {
     const impassableDepth = profile.type === 'motorbike' ? 25 : 35;
     floodPenalty = Math.min(50, Math.round((maxDepthCm / impassableDepth) * 45));
+    if (floodModelPreference === 'cautious') {
+      floodPenalty = Math.min(65, Math.round(floodPenalty * 1.35));
+    }
   }
   const severeDeduction = severeCount * (profile.type === 'motorbike' ? 35 : 25);
   const warningDeduction = warningCount * (profile.type === 'motorbike' ? 14 : 8);
-  const unknownDeduction = unknownCount * 8;
+  const unknownDeduction = unknownCount * (floodModelPreference === 'cautious' ? 12 : 8);
   const timeDeduction = Math.min(20, Math.round(totalDurationSeconds / 180));
 
   const rawScore = 100 - floodPenalty - severeDeduction - warningDeduction - unknownDeduction - timeDeduction;

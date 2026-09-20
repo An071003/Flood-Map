@@ -134,6 +134,7 @@ describe('V5 Navigation-First & Search Geocoding QA Suite', () => {
         district: 'Bình Thạnh',
         lng: 106.715,
         lat: 10.8,
+        matchQuality: 'approximate' as const,
         routableNodeId: 'node-hang-xanh',
         routableSnapDistanceMeters: 140,
         isOutsideGraph: true,
