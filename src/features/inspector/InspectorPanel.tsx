@@ -101,8 +101,8 @@ export const InspectorPanel: React.FC = () => {
         <button
           className="icon-btn small close-btn"
           onClick={() => setSelectedRoadId(null)}
-          title="Đóng bảng chi tiết"
-          aria-label="Đóng bảng chi tiết"
+          title="Đóng bảng thông tin"
+          aria-label="Đóng bảng thông tin"
         >
           ×
         </button>
@@ -194,10 +194,10 @@ export const InspectorPanel: React.FC = () => {
             🏍️ Xe máy: {p.estimatedDepthCm < 20 ? 'Qua được' : 'Nguy hiểm / Chết máy'}
           </span>
           <span className={`veh-pill ${p.estimatedDepthCm < 25 ? 'pass' : 'fail'}`}>
-            🚗 Sedan (gầm thấp): {p.estimatedDepthCm < 25 ? 'Cẩn trọng' : 'Không nên qua'}
+            🚗 Ô tô gầm thấp: {p.estimatedDepthCm < 25 ? 'Cẩn trọng' : 'Không nên qua'}
           </span>
           <span className={`veh-pill ${p.estimatedDepthCm < 40 ? 'pass' : 'caution'}`}>
-            🚙 SUV / Xe tải: {p.estimatedDepthCm < 40 ? 'Lưu thông được' : 'Hạn chế qua'}
+            🚙 Xe gầm cao / Xe tải: {p.estimatedDepthCm < 40 ? 'Lưu thông được' : 'Hạn chế qua'}
           </span>
         </div>
       </div>
@@ -237,7 +237,7 @@ export const InspectorPanel: React.FC = () => {
             <b>{p.rain1hMm} mm/h <small>(Dự báo)</small></b>
           </div>
           <div className="tech-row">
-            <span>Tọa độ neo (Anchor):</span>
+            <span>Tọa độ điểm neo:</span>
             <code>{p.anchorPoint[0]}, {p.anchorPoint[1]}</code>
           </div>
           <div className="tech-row">
@@ -251,7 +251,7 @@ export const InspectorPanel: React.FC = () => {
           <div className="confidence-doc">
             <strong>Về chỉ số độ đầy đủ dữ liệu ({Math.round(p.confidenceScore * 100)}%):</strong>
             <p>
-              Chỉ số phản ánh chất lượng và mức độ sẵn sàng của các biến số đầu vào (lượng mưa vệ tinh/radar, mực nước trạm thủy văn Phú An/Nhà Bè, độ dốc tự nhiên, khẩu độ cống). Đây là <em>mô hình ước tính mô phỏng</em>, chưa qua hiệu chuẩn cảm biến đo ngập thời gian thực (ground-truth).
+              Chỉ số phản ánh chất lượng và mức độ sẵn sàng của các biến số đầu vào (lượng mưa vệ tinh/radar, mực nước trạm thủy văn Phú An/Nhà Bè, độ dốc tự nhiên, khẩu độ cống). Đây là mô hình ước tính và chưa được hiệu chuẩn đầy đủ bằng dữ liệu đối chứng thực địa.
             </p>
           </div>
         </div>

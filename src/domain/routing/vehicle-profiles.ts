@@ -18,7 +18,7 @@ export const VEHICLE_PROFILES: Record<VehicleType, VehicleProfile> = {
   },
   car: {
     type: 'car',
-    label: 'Xe hơi (Sedan / SUV)',
+    label: 'Xe ô tô',
     unknownPenalty: 100,
     warningPenalty: 120,
     severePenalty: 500,

@@ -39,7 +39,7 @@ export const TopBar: React.FC = () => {
         <button
           className={`icon-btn route-planner-btn ${isRoutePlannerOpen ? 'active' : ''}`}
           onClick={() => setRoutePlannerOpen(!isRoutePlannerOpen)}
-          title={isRoutePlannerOpen ? 'Đóng bộ tìm đường' : 'Tìm đường tránh ngập (V4)'}
+          title={isRoutePlannerOpen ? 'Đóng bộ tìm đường' : 'Tìm đường tránh ngập'}
           aria-label="Tìm đường tránh ngập"
           aria-pressed={isRoutePlannerOpen}
         >
@@ -53,10 +53,14 @@ export const TopBar: React.FC = () => {
           <div>
             <strong>Mô hình ước tính</strong>
             <small>
-              {dataState === 'error'
-                ? 'Lỗi mạng · Chế độ offline'
+              {dataState === 'loading'
+                ? 'Đang tải...'
+                : dataState === 'updating'
+                ? 'Đang cập nhật...'
+                : dataState === 'error'
+                ? 'Không thể tải dữ liệu'
                 : dataState === 'stale'
-                ? `Dữ liệu cũ • ${lastUpdatedTimestamp}`
+                ? `Dữ liệu có thể đã cũ • ${lastUpdatedTimestamp}`
                 : `${lastUpdatedTimestamp} • MÔ PHỎNG`}
             </small>
           </div>
@@ -82,9 +86,9 @@ export const TopBar: React.FC = () => {
 
         <button
           className="icon-btn settings-btn"
-          title="Thông tin hệ thống Flood Map HCMC V3"
+          title="Thông tin hệ thống Flood Map TP.HCM"
           aria-label="Thông tin hệ thống"
-          onClick={() => alert('Flood Map HCMC V3 — Road-First Flood Monitoring System for Ho Chi Minh City')}
+          onClick={() => alert('Flood Map TP.HCM — Hệ thống theo dõi nguy cơ ngập đường bộ TP. Hồ Chí Minh')}
         >
           ⚙
         </button>

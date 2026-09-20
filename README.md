@@ -1,14 +1,19 @@
-# Flood Map HCMC — V5.1 Search + Navigation Optimization
+# Flood Map HCMC — V5.1.1 Vietnamese UI Polish
 
-Tập trung: search thật, snapping minh bạch, route visual rõ, filter hoạt động thật, UNKNOWN không regression, mobile test thật.
+Patch nhỏ sau V5.1, chỉ tập trung vào ngôn ngữ giao diện và production hygiene.
 
-Run order:
-1. AGENT-V5.1.md
-2. REVIEW-V5.1-PROMPT.md
-3. IMPLEMENT-V5.1-PROMPT.md
-4. SEARCH-VALIDATION-PROMPT.md
-5. ROUTE-VISUAL-QA-PROMPT.md
-6. MOBILE-V5.1-QA-PROMPT.md
-7. RELEASE-V5.1-PROMPT.md
+## Mục tiêu
+1. Toàn bộ text người dùng nhìn thấy phải là tiếng Việt.
+2. Ẩn toàn bộ QA/debug/test controls khỏi production.
+3. Giữ nguyên tên thương hiệu, phím tắt và đơn vị kỹ thuật cần thiết.
+4. Chuẩn hóa wording cho định tuyến, dữ liệu, dự báo, mô phỏng và search.
+5. QA desktop + mobile để bắt tiếng Anh còn sót.
 
-Không fake house number, alley routing, hoặc silent-snap xa.
+## Run order
+1. AGENT-V5.1.1.md
+2. REVIEW-V5.1.1-PROMPT.md
+3. IMPLEMENT-V5.1.1-PROMPT.md
+4. VIETNAMESE-COPY-QA-PROMPT.md
+5. PRODUCTION-HYGIENE-QA-PROMPT.md
+6. Build + deploy
+7. RELEASE-V5.1.1-PROMPT.md

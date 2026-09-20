@@ -94,7 +94,7 @@ export const RoutePlannerPanel: React.FC = () => {
   return (
     <section
       className={`route-planner-panel sheet-${sheetState}`}
-      aria-label="Bảng lập lộ trình tránh ngập"
+      aria-label="Bảng định tuyến"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -113,15 +113,15 @@ export const RoutePlannerPanel: React.FC = () => {
         <div>
           <div className="eyebrow-row">
             <span className="eyebrow">ĐỊNH TUYẾN THÔNG MINH</span>
-            <span className="sim-badge">V4.2 ENGINE</span>
+            <span className="sim-badge">Bộ định tuyến</span>
           </div>
           <h2>Tìm đường tránh ngập</h2>
         </div>
         <button
           className="icon-btn small close-btn"
           onClick={() => setRoutePlannerOpen(false)}
-          title="Đóng bảng lập lộ trình"
-          aria-label="Đóng bảng lập lộ trình"
+          title="Đóng bảng định tuyến"
+          aria-label="Đóng bảng định tuyến"
         >
           ×
         </button>
@@ -171,7 +171,7 @@ export const RoutePlannerPanel: React.FC = () => {
                       ? 'Ước lượng'
                       : originPlace.matchQuality === 'poi'
                       ? 'Địa điểm'
-                      : 'Tuyến đường'}
+                      : 'Theo tuyến đường'}
                   </span>
                 )}
               </div>
@@ -180,7 +180,7 @@ export const RoutePlannerPanel: React.FC = () => {
               )}
               {originPlace.routableSnapDistanceMeters && originPlace.routableSnapDistanceMeters > 50 && (
                 <div className="place-snap-text">
-                  Cách điểm bắt đầu định tuyến {originPlace.routableSnapDistanceMeters}m
+                  Cách điểm vào mạng đường {originPlace.routableSnapDistanceMeters}m
                 </div>
               )}
             </div>
@@ -238,7 +238,7 @@ export const RoutePlannerPanel: React.FC = () => {
                       ? 'Ước lượng'
                       : destinationPlace.matchQuality === 'poi'
                       ? 'Địa điểm'
-                      : 'Tuyến đường'}
+                      : 'Theo tuyến đường'}
                   </span>
                 )}
               </div>
@@ -247,7 +247,7 @@ export const RoutePlannerPanel: React.FC = () => {
               )}
               {destinationPlace.routableSnapDistanceMeters && destinationPlace.routableSnapDistanceMeters > 50 && (
                 <div className="place-snap-text">
-                  Cách điểm kết thúc định tuyến {destinationPlace.routableSnapDistanceMeters}m
+                  Cách điểm vào mạng đường {destinationPlace.routableSnapDistanceMeters}m
                 </div>
               )}
             </div>
@@ -359,18 +359,20 @@ export const RoutePlannerPanel: React.FC = () => {
         </div>
       )}
 
-      {/* QA Mode UNKNOWN Fixture Switch (Production default OFF) */}
-      <div className="qa-fixture-strip">
-        <label className="qa-fixture-label" htmlFor="qa-fixture-toggle">
-          <input
-            id="qa-fixture-toggle"
-            type="checkbox"
-            checked={qaUnknownFixtureEnabled}
-            onChange={(e) => setQaUnknownFixtureEnabled(e.target.checked)}
-          />
-          <span>QA Test: Bật đoạn Chưa đủ dữ liệu (UNKNOWN fixture)</span>
-        </label>
-      </div>
+      {/* QA Mode UNKNOWN Fixture Switch (Production default OFF, DEV-only) */}
+      {import.meta.env.DEV && (
+        <div className="qa-fixture-strip">
+          <label className="qa-fixture-label" htmlFor="qa-fixture-toggle">
+            <input
+              id="qa-fixture-toggle"
+              type="checkbox"
+              checked={qaUnknownFixtureEnabled}
+              onChange={(e) => setQaUnknownFixtureEnabled(e.target.checked)}
+            />
+            <span>QA Test: Bật đoạn Chưa đủ dữ liệu (UNKNOWN fixture)</span>
+          </label>
+        </div>
+      )}
 
       {/* Route Candidates Result Cards */}
       <div className="route-candidates-list" role="region" aria-label="Danh sách phương án đường đi">
@@ -439,7 +441,7 @@ export const RoutePlannerPanel: React.FC = () => {
                         ? candidate.maxDepthCm > 0
                           ? `${candidate.maxDepthCm} cm`
                           : '0 cm (Khô ráo)'
-                        : 'Chưa có dữ liệu cảm biến'}
+                        : 'Chưa đủ dữ liệu'}
                     </strong>
                   </div>
 
@@ -470,16 +472,16 @@ export const RoutePlannerPanel: React.FC = () => {
                   <div className="route-metrics-row">
                     <div
                       className="coverage-stat"
-                      title={`Đoạn có cảm biến: ${(candidate.evaluation.knownDistanceMeters / 1000).toFixed(1)} km / Tổng: ${(candidate.evaluation.totalDistanceMeters / 1000).toFixed(1)} km`}
+                      title={`Đoạn có dữ liệu: ${(candidate.evaluation.knownDistanceMeters / 1000).toFixed(1)} km / Tổng: ${(candidate.evaluation.totalDistanceMeters / 1000).toFixed(1)} km`}
                     >
-                      <span>Độ phủ: </span>
+                      <span>Độ phủ dữ liệu: </span>
                       <b className={candidate.coveragePercent < 80 ? 'text-warn' : 'text-good'}>
                         {candidate.coveragePercent}%
                       </b>
                     </div>
 
-                    <div className="unknown-count-stat" title="Số phân đoạn chưa có trạm cảm biến đo đạc">
-                      <span>Chưa đo: </span>
+                    <div className="unknown-count-stat" title="Số phân đoạn chưa có dữ liệu đo đạc">
+                      <span>Chưa đủ dữ liệu: </span>
                       <b className={candidate.unknownCount > 0 ? 'text-warn' : 'text-good'}>
                         {candidate.unknownCount} đoạn
                       </b>
@@ -489,7 +491,7 @@ export const RoutePlannerPanel: React.FC = () => {
                         </span>
                       ) : (
                         <span className="unknown-pill text-good">
-                          (100% cảm biến)
+                          (Đầy đủ dữ liệu)
                         </span>
                       )}
                     </div>

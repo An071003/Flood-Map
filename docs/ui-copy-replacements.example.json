@@ -1,0 +1,13 @@
+{
+  "V4.2 ENGINE": "Bộ định tuyến",
+  "UNKNOWN": "Chưa đủ dữ liệu",
+  "Coverage": "Độ phủ dữ liệu",
+  "Sedan (gầm thấp)": "Ô tô gầm thấp",
+  "SUV / Xe tải": "Xe gầm cao / Xe tải",
+  "Anchor": "Điểm neo",
+  "ground-truth": "dữ liệu đối chứng thực địa",
+  "Loading": "Đang tải",
+  "Updating": "Đang cập nhật",
+  "Error": "Không thể tải dữ liệu",
+  "Retry": "Thử lại"
+}

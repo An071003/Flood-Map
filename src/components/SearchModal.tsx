@@ -132,7 +132,7 @@ export const SearchModal: React.FC = () => {
       case 'approximate':
         return <span className="quality-badge approx" title="Vị trí ước lượng (chưa hỗ trợ số nhà chi tiết)">Ước lượng</span>;
       case 'street-level':
-        return <span className="quality-badge street" title="Định vị theo tim đường">Tuyến đường</span>;
+        return <span className="quality-badge street" title="Định vị theo tim đường">Theo tuyến đường</span>;
       case 'poi':
         return <span className="quality-badge poi" title="Địa điểm công cộng xác thực">Địa điểm</span>;
       default:
@@ -148,7 +148,7 @@ export const SearchModal: React.FC = () => {
       onClick={() => setSearchOpen(false)}
       role="dialog"
       aria-modal="true"
-      aria-label="Tìm kiếm địa chỉ, địa điểm và tuyến đường"
+      aria-label="Tìm địa chỉ và địa điểm"
     >
       <div className="search-modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="search-modal-header">
@@ -240,7 +240,7 @@ export const SearchModal: React.FC = () => {
                           className="search-snap-badge"
                           title="Nằm trong hẻm hoặc ngoài mạng đường xe cơ giới chính"
                         >
-                          Cách đường lớn {place.routableSnapDistanceMeters}m
+                          Cách điểm vào mạng đường {place.routableSnapDistanceMeters}m
                         </span>
                       )}
                     </div>

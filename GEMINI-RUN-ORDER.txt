@@ -1,10 +1,9 @@
-1. Read AGENT-V5.1.md
-2. Run REVIEW-V5.1-PROMPT.md
-3. Do not implement until search precision + snapping flow are known
-4. Run IMPLEMENT-V5.1-PROMPT.md
-5. Run SEARCH-VALIDATION-PROMPT.md
-6. Run ROUTE-VISUAL-QA-PROMPT.md
-7. Run MOBILE-V5.1-QA-PROMPT.md
-8. Build + deploy
-9. Run RELEASE-V5.1-PROMPT.md
-10. Do not declare done while Critical/High fail
+1. Read AGENT-V5.1.1.md
+2. Run REVIEW-V5.1.1-PROMPT.md
+3. Produce English-string inventory before coding
+4. Run IMPLEMENT-V5.1.1-PROMPT.md
+5. Run VIETNAMESE-COPY-QA-PROMPT.md
+6. Run PRODUCTION-HYGIENE-QA-PROMPT.md
+7. Build + deploy
+8. Run RELEASE-V5.1.1-PROMPT.md
+9. Do not declare done while any Critical item fails
