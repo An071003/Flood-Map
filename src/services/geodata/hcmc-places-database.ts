@@ -406,34 +406,93 @@ export const SNAP_THRESHOLDS = {
   UNSUPPORTED_MAX_METERS: 1500,
 } as const;
 
+function haversineMeters(lng1: number, lat1: number, lng2: number, lat2: number): number {
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371000 * c;
+}
+
+function projectPointToLineSegment(
+  pLng: number,
+  pLat: number,
+  aLng: number,
+  aLat: number,
+  bLng: number,
+  bLat: number
+): { snappedLng: number; snappedLat: number; distanceMeters: number } {
+  const midLat = (pLat + ((aLat + bLat) / 2)) / 2;
+  const kx = Math.cos((midLat * Math.PI) / 180) * 111320;
+  const ky = 111320;
+
+  const dx = (bLng - aLng) * kx;
+  const dy = (bLat - aLat) * ky;
+  const lenSq = dx * dx + dy * dy;
+
+  let t = 0;
+  if (lenSq > 0) {
+    const px = (pLng - aLng) * kx;
+    const py = (pLat - aLat) * ky;
+    t = (px * dx + py * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+  }
+
+  const snappedLng = aLng + t * (bLng - aLng);
+  const snappedLat = aLat + t * (bLat - aLat);
+  const distanceMeters = haversineMeters(pLng, pLat, snappedLng, snappedLat);
+
+  return { snappedLng, snappedLat, distanceMeters };
+}
+
 /**
- * Snaps coordinates (lng, lat) to the nearest supported node in HCMC_ROAD_NODES.
- * Returns a complete RouteSnapResult including input, snapped point, distance, and status.
+ * V6 Segment-Level Snapping:
+ * Finds the nearest valid route segment via orthogonal projection onto road geometries,
+ * then maps to the closest terminal node on that segment.
  */
 export function snapCoordinatesToRoutableNetwork(
   lng: number,
   lat: number
 ): RouteSnapResult {
-  let bestNode = HCMC_ROAD_NODES[0];
   let minDistance = Infinity;
+  let bestSnappedLng = lng;
+  let bestSnappedLat = lat;
+  let bestSegment = HCMC_GRAPH_SEGMENTS[0];
 
-  for (const node of HCMC_ROAD_NODES) {
-    const dLat = ((node.lat - lat) * Math.PI) / 180;
-    const dLng = ((node.lng - lng) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat * Math.PI) / 180) *
-        Math.cos((node.lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distMeters = 6371000 * c;
+  // 1. Orthogonal projection across all segments
+  for (const seg of HCMC_GRAPH_SEGMENTS) {
+    const coords = seg.geometry?.coordinates;
+    if (!coords || coords.length < 2) continue;
 
-    if (distMeters < minDistance) {
-      minDistance = distMeters;
-      bestNode = node;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const [aLng, aLat] = coords[i];
+      const [bLng, bLat] = coords[i + 1];
+      const proj = projectPointToLineSegment(lng, lat, aLng, aLat, bLng, bLat);
+
+      if (proj.distanceMeters < minDistance) {
+        minDistance = proj.distanceMeters;
+        bestSnappedLng = proj.snappedLng;
+        bestSnappedLat = proj.snappedLat;
+        bestSegment = seg;
+      }
     }
   }
+
+  // 2. Identify closest terminal node on bestSegment
+  const fromNode = HCMC_ROAD_NODES.find((n) => n.id === bestSegment.fromNodeId);
+  const toNode = HCMC_ROAD_NODES.find((n) => n.id === bestSegment.toNodeId);
+  const distToFrom = fromNode
+    ? haversineMeters(bestSnappedLng, bestSnappedLat, fromNode.lng, fromNode.lat)
+    : Infinity;
+  const distToTo = toNode
+    ? haversineMeters(bestSnappedLng, bestSnappedLat, toNode.lng, toNode.lat)
+    : Infinity;
+  const bestNodeId = distToFrom <= distToTo ? bestSegment.fromNodeId : bestSegment.toNodeId;
 
   const distanceMeters = Math.round(minDistance);
   let status: RouteSnapStatus = 'near';
@@ -447,18 +506,13 @@ export function snapCoordinatesToRoutableNetwork(
     status = 'unsupported';
   }
 
-  const incidentSeg = HCMC_GRAPH_SEGMENTS.find(
-    (s) => s.fromNodeId === bestNode.id || s.toNodeId === bestNode.id
-  );
-  const segmentId = incidentSeg ? incidentSeg.id : `seg-${bestNode.id}`;
-
   return {
     inputLng: lng,
     inputLat: lat,
-    snappedLng: bestNode.lng,
-    snappedLat: bestNode.lat,
-    nodeId: bestNode.id,
-    segmentId,
+    snappedLng: Number(bestSnappedLng.toFixed(6)),
+    snappedLat: Number(bestSnappedLat.toFixed(6)),
+    nodeId: bestNodeId,
+    segmentId: bestSegment.id,
     distanceMeters,
     status,
   };

@@ -155,7 +155,7 @@ export interface RoadNode {
   isMajorHub?: boolean;
 }
 
-export type RoadClass = 'trunk' | 'primary' | 'secondary' | 'tertiary';
+export type RoadClass = 'trunk' | 'primary' | 'secondary' | 'tertiary' | 'residential' | 'service';
 
 export type FloodStatus = 'known' | 'unknown';
 

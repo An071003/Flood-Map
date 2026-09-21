@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useAppStore } from '../stores/app-store';
 import { RoadWeatherService } from '../services/road-weather-service';
 import { searchPlaces } from '../services/geodata/hcmc-places-database';
+import { HybridGeocodingService } from '../services/geocoding/hybrid-geocoder';
 import { SearchPlace, SearchPlaceType, SearchMatchQuality } from '../types';
 
 export const SearchModal: React.FC = () => {
@@ -21,6 +22,8 @@ export const SearchModal: React.FC = () => {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(searchQuery);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchPlace[]>(() => searchPlaces(searchQuery));
 
   // Synchronize local input if external store query changes
   useEffect(() => {
@@ -71,9 +74,37 @@ export const SearchModal: React.FC = () => {
     }
   }, [isSearchOpen]);
 
-  // V5/V5.1 Multi-category place search (Addresses, Alleys, Roads, POIs, Intersections)
-  const searchResults: SearchPlace[] = useMemo(() => {
-    return searchPlaces(searchQuery);
+  // V6 Hybrid Geocoding Search: local immediate + asynchronous geocoder
+  useEffect(() => {
+    // 1. Instant local results
+    const local = searchPlaces(searchQuery);
+    setSearchResults(local);
+
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setIsSearching(false);
+      return;
+    }
+
+    // 2. Query hybrid service
+    const controller = new AbortController();
+    setIsSearching(true);
+
+    const hybrid = HybridGeocodingService.getInstance();
+    hybrid
+      .search(searchQuery, { signal: controller.signal, limit: 12 })
+      .then((results) => {
+        if (!controller.signal.aborted) {
+          setSearchResults(results);
+          setIsSearching(false);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
+      });
+
+    return () => controller.abort();
   }, [searchQuery]);
 
   const handleViewFlood = (place: SearchPlace) => {
@@ -234,6 +265,9 @@ export const SearchModal: React.FC = () => {
                     <div className="result-title-row">
                       {renderTypeBadge(place.type)}
                       {renderQualityBadge(place.matchQuality)}
+                      {place.source?.includes('osm') && (
+                        <span className="search-source-tag" title="Từ OpenStreetMap">OSM</span>
+                      )}
                       <strong className="result-name">{place.name || place.label}</strong>
                       {hasSnapWarning && (
                         <span
@@ -300,6 +334,11 @@ export const SearchModal: React.FC = () => {
               );
             })
           )}
+        </div>
+
+        <div className="search-modal-attribution">
+          {isSearching && <span className="search-loading-text">Đang tìm kiếm bổ sung... · </span>}
+          <span>Dữ liệu: Cơ sở dữ liệu TP.HCM &amp; Đóng góp từ OpenStreetMap</span>
         </div>
       </div>
     </div>

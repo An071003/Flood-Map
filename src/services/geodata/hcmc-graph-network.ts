@@ -1302,4 +1302,69 @@ export const HCMC_GRAPH_SEGMENTS: GraphRoadSegment[] = [
       'high'
     ),
   },
+
+  // 17. Residential & Service Graph Expansion (V6)
+  {
+    id: 'seg-residential-q3',
+    roadId: 'residential-q3',
+    roadName: 'Đường nội khu Quận 3 (Nam Kỳ Khởi Nghĩa ↔ Đinh Tiên Hoàng)',
+    district: 'Quận 3',
+    roadClass: 'residential',
+    fromNodeId: 'node-nam-ky-khoi-nghia',
+    toNodeId: 'node-dinh-tien-hoang',
+    bidirectional: true,
+    lengthMeters: 1200,
+    estimatedTravelSeconds: 140,
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [106.691, 10.784],
+        [106.696, 10.7845],
+        [106.702, 10.785],
+      ],
+    },
+    floodForecast: makeForecast({ 0: 3, 1: 5, 3: 6, 6: 3, 12: 1, 24: 0 }, 'known', 'high'),
+  },
+  {
+    id: 'seg-doan-van-bo-residential',
+    roadId: 'doan-van-bo',
+    roadName: 'Đường dân sinh Đoàn Văn Bơ (Bến Vân Đồn ↔ Cầu Ông Lãnh)',
+    district: 'Quận 4',
+    roadClass: 'residential',
+    fromNodeId: 'node-ben-van-don-q4',
+    toNodeId: 'node-ong-lanh-q4',
+    bidirectional: true,
+    lengthMeters: 550,
+    estimatedTravelSeconds: 65,
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [106.702, 10.761],
+        [106.6995, 10.76],
+        [106.697, 10.759],
+      ],
+    },
+    floodForecast: makeForecast({ 0: 5, 1: 7, 3: 9, 6: 4, 12: 1, 24: 0 }, 'known', 'medium'),
+  },
+  {
+    id: 'seg-vinhomes-service',
+    roadId: 'vinhomes-service',
+    roadName: 'Đường gom Tân Cảng · Vinhomes Central Park',
+    district: 'Bình Thạnh',
+    roadClass: 'service',
+    fromNodeId: 'node-nhc-tan-cang',
+    toNodeId: 'node-cau-sai-gon-bt',
+    bidirectional: true,
+    lengthMeters: 450,
+    estimatedTravelSeconds: 50,
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [106.723, 10.796],
+        [106.722, 10.7975],
+        [106.7215, 10.798],
+      ],
+    },
+    floodForecast: makeForecast({ 0: 2, 1: 3, 3: 4, 6: 2, 12: 0, 24: 0 }, 'known', 'high'),
+  },
 ];

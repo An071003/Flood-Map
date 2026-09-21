@@ -366,9 +366,10 @@ export class RoutingEngine {
       cand.omissionReason = this.lastOmissionReason || undefined;
       candidates.push(cand);
     } else if (distinctPaths.length === 2) {
-      // 2 distinct corridors: Drier one is LEAST_FLOOD, faster one is BALANCED
+      // 2 distinct corridors: Drier one is LEAST_FLOOD, faster one is FASTEST (if requested) or BALANCED
+      const secondStrategy: RouteStrategy = req.preferredStrategy === 'FASTEST' ? 'FASTEST' : 'BALANCED';
       const cand1 = evaluateRoute(distinctPaths[0], 'LEAST_FLOOD', departureHour, profile, 0, floodModelPreference);
-      const cand2 = evaluateRoute(distinctPaths[1], 'BALANCED', departureHour, profile, 1, floodModelPreference);
+      const cand2 = evaluateRoute(distinctPaths[1], secondStrategy, departureHour, profile, 1, floodModelPreference);
       cand1.omissionNote = omissionNote;
       cand1.omissionReason = this.lastOmissionReason || undefined;
       cand2.omissionNote = omissionNote;

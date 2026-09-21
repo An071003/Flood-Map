@@ -1,19 +1,41 @@
-# Flood Map HCMC — V5.1.1 Vietnamese UI Polish
+# Flood Map HCMC — V6 Real Navigation + Documentation Cleanup
 
-Patch nhỏ sau V5.1, chỉ tập trung vào ngôn ngữ giao diện và production hygiene.
+Pack này có 2 mục tiêu song song:
 
-## Mục tiêu
-1. Toàn bộ text người dùng nhìn thấy phải là tiếng Việt.
-2. Ẩn toàn bộ QA/debug/test controls khỏi production.
-3. Giữ nguyên tên thương hiệu, phím tắt và đơn vị kỹ thuật cần thiết.
-4. Chuẩn hóa wording cho định tuyến, dữ liệu, dự báo, mô phỏng và search.
-5. QA desktop + mobile để bắt tiếng Anh còn sót.
+1. Nâng dự án từ navigation prototype lên real-navigation foundation.
+2. Dọn tài liệu cũ để repo chỉ còn một bộ tài liệu canonical, dễ đọc và dễ bảo trì.
+
+## Ưu tiên V6
+- real geocoding layer
+- expanded road graph
+- exact segment snapping
+- route filter contract hoàn chỉnh
+- unsupported destination confirmation
+- giữ nguyên contextual flood rendering của V5
+- không redesign UI lớn
+
+## Documentation goal
+Sau cleanup, repo nên chỉ giữ:
+
+```text
+README.md
+AGENT.md
+docs/
+  PRODUCT.md
+  ARCHITECTURE.md
+  DATA-SEMANTICS.md
+  NAVIGATION.md
+  QA.md
+  CHANGELOG.md
+```
+
+Các prompt triển khai không cần tồn tại vĩnh viễn trong repo sau khi task hoàn thành.
 
 ## Run order
-1. AGENT-V5.1.1.md
-2. REVIEW-V5.1.1-PROMPT.md
-3. IMPLEMENT-V5.1.1-PROMPT.md
-4. VIETNAMESE-COPY-QA-PROMPT.md
-5. PRODUCTION-HYGIENE-QA-PROMPT.md
-6. Build + deploy
-7. RELEASE-V5.1.1-PROMPT.md
+1. AGENT.md
+2. REVIEW-AND-INVENTORY-PROMPT.md
+3. DOC-CLEANUP-PROMPT.md
+4. IMPLEMENT-V6-PROMPT.md
+5. V6-QA-PROMPT.md
+6. build + deploy
+7. RELEASE-PROMPT.md

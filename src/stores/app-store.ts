@@ -8,6 +8,7 @@ import {
   FloodModelPreference,
   RouteCandidate,
   RouteSnapResult,
+  RouteStrategy,
   SearchPlace,
   VehicleType,
 } from '../types';
@@ -50,6 +51,12 @@ interface AppState {
   isLocating: boolean;
   locationError: string | null;
 
+  // V6 Filter Contract & Unsupported Destination State
+  selectedStrategy: RouteStrategy;
+  preferredMaxDepthCm?: number;
+  unsupportedDestinationPending: boolean;
+  unsupportedDestinationPlace: SearchPlace | null;
+
   // V4/V5 Route Planner State
   isRoutePlannerOpen: boolean;
   routeOriginId: string | null;
@@ -87,6 +94,12 @@ interface AppState {
   setFloodModelPreference: (pref: FloodModelPreference) => void;
   setDataQualityPreference: (pref: DataQualityPreference) => void;
   fetchUserLocation: (target?: 'origin' | 'destination') => Promise<void>;
+
+  // V6 Actions
+  setSelectedStrategy: (strategy: RouteStrategy) => void;
+  setPreferredMaxDepthCm: (depth?: number) => void;
+  confirmUnsupportedDestination: () => void;
+  cancelUnsupportedDestination: () => void;
 
   // Route Planner Actions
   setRoutePlannerOpen: (open: boolean) => void;
@@ -130,6 +143,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   userCurrentLocation: null,
   isLocating: false,
   locationError: null,
+
+  // V6 Filter Contract & Unsupported Destination State
+  selectedStrategy: 'LEAST_FLOOD',
+  preferredMaxDepthCm: undefined,
+  unsupportedDestinationPending: false,
+  unsupportedDestinationPlace: null,
 
   // Route Planner Initial States
   isRoutePlannerOpen: false,
@@ -206,29 +225,88 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setDestinationPlace: (place) => {
-    set({ destinationPlace: place });
-    if (place) {
-      const snapResult = snapCoordinatesToRoutableNetwork(place.lng, place.lat);
-      const nodeId = place.routableNodeId || snapResult.nodeId;
-      const dist = place.routableSnapDistanceMeters ?? snapResult.distanceMeters;
-
-      let snapWarning: string | null = null;
-      if (place.isOutsideGraph || dist > 50 || snapResult.status === 'far' || snapResult.status === 'unsupported') {
-        snapWarning = `Tuyến được tính đến điểm hỗ trợ gần nhất, cách vị trí đã chọn ${dist} m.`;
-      }
-
+    if (!place) {
       set({
-        routeDestinationId: nodeId,
-        destinationSnapResult: snapResult,
-        snapWarningNote: snapWarning,
-      });
-    } else {
-      set({
+        destinationPlace: null,
         destinationSnapResult: null,
         snapWarningNote: null,
+        unsupportedDestinationPending: false,
+        unsupportedDestinationPlace: null,
       });
+      get().recalculateRoutes();
+      return;
     }
+
+    const snapResult = snapCoordinatesToRoutableNetwork(place.lng, place.lat);
+    const dist = place.routableSnapDistanceMeters ?? snapResult.distanceMeters;
+
+    // V6 Phase 5: Unsupported destination flow - do not auto-route when status is 'unsupported' (>300m)
+    if (snapResult.status === 'unsupported' || dist > 300) {
+      const snapWarning = `Tuyến được tính đến điểm hỗ trợ gần nhất, cách vị trí đã chọn ${dist} m.`;
+      set({
+        destinationPlace: place,
+        destinationSnapResult: snapResult,
+        unsupportedDestinationPending: true,
+        unsupportedDestinationPlace: place,
+        routeCandidates: [],
+        selectedRouteCandidateId: null,
+        snapWarningNote: snapWarning,
+      });
+      return;
+    }
+
+    const nodeId = place.routableNodeId || snapResult.nodeId;
+    let snapWarning: string | null = null;
+    if (place.isOutsideGraph || dist > 50 || snapResult.status === 'far') {
+      snapWarning = `Tuyến được tính đến điểm hỗ trợ gần nhất, cách vị trí đã chọn ${dist} m.`;
+    }
+
+    set({
+      destinationPlace: place,
+      routeDestinationId: nodeId,
+      destinationSnapResult: snapResult,
+      snapWarningNote: snapWarning,
+      unsupportedDestinationPending: false,
+      unsupportedDestinationPlace: null,
+    });
     get().recalculateRoutes();
+  },
+
+  confirmUnsupportedDestination: () => {
+    const { unsupportedDestinationPlace, destinationSnapResult } = get();
+    if (!unsupportedDestinationPlace || !destinationSnapResult) return;
+
+    const nodeId = destinationSnapResult.nodeId;
+    const dist = destinationSnapResult.distanceMeters;
+    const snapWarning = `Tuyến được tính đến điểm hỗ trợ gần nhất, cách vị trí đã chọn ${dist} m.`;
+
+    set({
+      routeDestinationId: nodeId,
+      snapWarningNote: snapWarning,
+      unsupportedDestinationPending: false,
+    });
+    get().recalculateRoutes();
+  },
+
+  cancelUnsupportedDestination: () => {
+    set({
+      destinationPlace: null,
+      destinationSnapResult: null,
+      unsupportedDestinationPending: false,
+      unsupportedDestinationPlace: null,
+      snapWarningNote: null,
+      isSearchOpen: true,
+    });
+  },
+
+  setSelectedStrategy: (strategy) => {
+    set({ selectedStrategy: strategy });
+    if (get().isRoutePlannerOpen) get().recalculateRoutes();
+  },
+
+  setPreferredMaxDepthCm: (depth) => {
+    set({ preferredMaxDepthCm: depth });
+    if (get().isRoutePlannerOpen) get().recalculateRoutes();
   },
 
   setFloodModelPreference: (pref) => {
@@ -369,6 +447,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           routeOmissionReason: null,
           displayedRouteCount: 0,
           snapWarningNote: null,
+          unsupportedDestinationPending: false,
+          unsupportedDestinationPlace: null,
         });
       } else {
         set({
@@ -380,6 +460,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           routeOmissionReason: null,
           displayedRouteCount: 0,
           snapWarningNote: null,
+          unsupportedDestinationPending: false,
+          unsupportedDestinationPlace: null,
         });
       }
     }
@@ -418,7 +500,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       qaUnknownFixtureEnabled,
       floodModelPreference,
       dataQualityPreference,
+      selectedStrategy,
+      preferredMaxDepthCm,
+      unsupportedDestinationPending,
     } = get();
+
+    if (unsupportedDestinationPending) {
+      return;
+    }
 
     if (!routeOriginId || !routeDestinationId || routeOriginId === routeDestinationId) {
       set({
@@ -441,6 +530,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       qaUnknownFixture: qaUnknownFixtureEnabled,
       floodModelPreference,
       dataQualityPreference,
+      preferredStrategy: selectedStrategy,
+      customMaxDepthCm: preferredMaxDepthCm,
     });
 
     set({

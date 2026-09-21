@@ -13,11 +13,20 @@ export const RoutePlannerPanel: React.FC = () => {
   const setRouteDestinationId = useAppStore((s) => s.setRouteDestinationId);
   const originPlace = useAppStore((s) => s.originPlace);
   const destinationPlace = useAppStore((s) => s.destinationPlace);
+  const destinationSnapResult = useAppStore((s) => s.destinationSnapResult);
+  const unsupportedDestinationPending = useAppStore((s) => s.unsupportedDestinationPending);
+  const unsupportedDestinationPlace = useAppStore((s) => s.unsupportedDestinationPlace);
+  const confirmUnsupportedDestination = useAppStore((s) => s.confirmUnsupportedDestination);
+  const cancelUnsupportedDestination = useAppStore((s) => s.cancelUnsupportedDestination);
   const snapWarningNote = useAppStore((s) => s.snapWarningNote);
   const floodModelPreference = useAppStore((s) => s.floodModelPreference);
   const setFloodModelPreference = useAppStore((s) => s.setFloodModelPreference);
   const dataQualityPreference = useAppStore((s) => s.dataQualityPreference);
   const setDataQualityPreference = useAppStore((s) => s.setDataQualityPreference);
+  const selectedStrategy = useAppStore((s) => s.selectedStrategy);
+  const setSelectedStrategy = useAppStore((s) => s.setSelectedStrategy);
+  const preferredMaxDepthCm = useAppStore((s) => s.preferredMaxDepthCm);
+  const setPreferredMaxDepthCm = useAppStore((s) => s.setPreferredMaxDepthCm);
   const selectedVehicle = useAppStore((s) => s.selectedVehicle);
   const setSelectedVehicle = useAppStore((s) => s.setSelectedVehicle);
   const routeCandidates = useAppStore((s) => s.routeCandidates);
@@ -266,12 +275,44 @@ export const RoutePlannerPanel: React.FC = () => {
         </div>
 
         {/* Off-graph Snapping Disclosure (Rule 2 & 5) */}
-        {snapWarningNote && (
+        {snapWarningNote && !unsupportedDestinationPending && (
           <div className="route-snap-warning-banner" role="alert">
             <span className="snap-warn-icon" aria-hidden="true">⚠️</span>
             <div className="snap-warn-content">
               <strong>Lưu ý tiếp cận điểm đến</strong>
               <p>{snapWarningNote}</p>
+            </div>
+          </div>
+        )}
+
+        {/* V6 Phase 5: Unsupported destination confirmation dialog */}
+        {unsupportedDestinationPending && (
+          <div className="unsupported-destination-card" role="alert">
+            <div className="unsupported-header">
+              <span className="unsupported-icon" aria-hidden="true">⚠️</span>
+              <strong>Vị trí ngoài mạng đường chi tiết</strong>
+            </div>
+            <p className="unsupported-desc">
+              Vị trí {unsupportedDestinationPlace?.name || unsupportedDestinationPlace?.label ? `"${unsupportedDestinationPlace.name || unsupportedDestinationPlace.label}"` : 'này'} nằm ngoài mạng đường được hỗ trợ chi tiết.
+            </p>
+            <div className="unsupported-dist-badge">
+              Điểm gần nhất cách <b>{destinationSnapResult?.distanceMeters ?? 380} m</b>.
+            </div>
+            <div className="unsupported-actions">
+              <button
+                type="button"
+                className="unsupported-btn primary"
+                onClick={confirmUnsupportedDestination}
+              >
+                Định tuyến đến điểm gần nhất
+              </button>
+              <button
+                type="button"
+                className="unsupported-btn secondary"
+                onClick={cancelUnsupportedDestination}
+              >
+                Chọn vị trí khác
+              </button>
             </div>
           </div>
         )}
@@ -308,7 +349,38 @@ export const RoutePlannerPanel: React.FC = () => {
         </button>
       </div>
 
-      {/* V5 Route Preference Filters */}
+      {/* V6 Strategy Strip */}
+      <div className="strategy-selector-strip" role="radiogroup" aria-label="Chiến lược tìm đường">
+        <button
+          type="button"
+          className={`strat-tab ${selectedStrategy === 'LEAST_FLOOD' ? 'active' : ''}`}
+          onClick={() => setSelectedStrategy('LEAST_FLOOD')}
+          role="radio"
+          aria-checked={selectedStrategy === 'LEAST_FLOOD'}
+        >
+          <span>🛡️ Ít ngập nhất</span>
+        </button>
+        <button
+          type="button"
+          className={`strat-tab ${selectedStrategy === 'BALANCED' ? 'active' : ''}`}
+          onClick={() => setSelectedStrategy('BALANCED')}
+          role="radio"
+          aria-checked={selectedStrategy === 'BALANCED'}
+        >
+          <span>⚖️ Cân bằng</span>
+        </button>
+        <button
+          type="button"
+          className={`strat-tab ${selectedStrategy === 'FASTEST' ? 'active' : ''}`}
+          onClick={() => setSelectedStrategy('FASTEST')}
+          role="radio"
+          aria-checked={selectedStrategy === 'FASTEST'}
+        >
+          <span>⚡ Nhanh nhất</span>
+        </button>
+      </div>
+
+      {/* V6 Route Preference Filters */}
       <div className="route-preferences-strip">
         <div className="pref-item">
           <label htmlFor="pref-flood-model">Mô hình:</label>
@@ -324,6 +396,24 @@ export const RoutePlannerPanel: React.FC = () => {
         </div>
 
         <div className="pref-item">
+          <label htmlFor="pref-max-depth">Ngưỡng ngập:</label>
+          <select
+            id="pref-max-depth"
+            value={preferredMaxDepthCm ?? ''}
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : undefined;
+              setPreferredMaxDepthCm(val);
+            }}
+            className="pref-select"
+          >
+            <option value="">Tất cả mức</option>
+            <option value="10">Tối đa ≤10cm</option>
+            <option value="20">Tối đa ≤20cm</option>
+            <option value="30">Tối đa ≤30cm</option>
+          </select>
+        </div>
+
+        <div className="pref-item">
           <label htmlFor="pref-data-quality">Dữ liệu:</label>
           <select
             id="pref-data-quality"
@@ -332,7 +422,7 @@ export const RoutePlannerPanel: React.FC = () => {
             className="pref-select"
           >
             <option value="all">Tất cả tuyến</option>
-            <option value="high_coverage_only">Độ phủ cao (≥80%)</option>
+            <option value="high_coverage_only">Ưu tiên tuyến có độ phủ dữ liệu cao</option>
           </select>
         </div>
       </div>
