@@ -1,41 +1,42 @@
-# Flood Map HCMC — V6 Real Navigation + Documentation Cleanup
+# Flood Map HCMC — V6 P0 Real Road Geometry Fix
 
-Pack này có 2 mục tiêu song song:
+Đây là patch P0 cho bug critical:
 
-1. Nâng dự án từ navigation prototype lên real-navigation foundation.
-2. Dọn tài liệu cũ để repo chỉ còn một bộ tài liệu canonical, dễ đọc và dễ bảo trì.
+> Road/route overlay đang đi xuyên qua lô đất, công trình và không bám theo road centerline thật trên basemap.
 
-## Ưu tiên V6
-- real geocoding layer
-- expanded road graph
-- exact segment snapping
-- route filter contract hoàn chỉnh
-- unsupported destination confirmation
-- giữ nguyên contextual flood rendering của V5
-- không redesign UI lớn
+## Root cause đã xác định
 
-## Documentation goal
-Sau cleanup, repo nên chỉ giữ:
+Hiện tại nhiều road và graph segment dùng `LineString` viết tay, chỉ có vài coordinate rồi nối thẳng.
 
-```text
-README.md
-AGENT.md
-docs/
-  PRODUCT.md
-  ARCHITECTURE.md
-  DATA-SEMANTICS.md
-  NAVIGATION.md
-  QA.md
-  CHANGELOG.md
+Ví dụ:
+```ts
+coordinates: [
+  [106.662, 10.797],
+  [106.659, 10.801],
+  [106.657, 10.806],
+  [106.655, 10.812],
+]
 ```
 
-Các prompt triển khai không cần tồn tại vĩnh viễn trong repo sau khi task hoàn thành.
+Đây chỉ là polyline minh họa, không phải road geometry thật.
+
+MapLibre render đúng geometry được cung cấp, nên lỗi nằm ở data geometry, không phải renderer.
+
+## P0 Goal
+
+1. Không dùng hand-written road geometry làm navigation geometry.
+2. Road overlay phải bám road centerline thật.
+3. Routing graph phải dùng cùng geometry với map rendering.
+4. Snap phải snap vào real road segment.
+5. Selected-road và selected-route không được đi xuyên parcel/building.
+6. Có geometry QA để bắt lỗi trước release.
 
 ## Run order
-1. AGENT.md
-2. REVIEW-AND-INVENTORY-PROMPT.md
-3. DOC-CLEANUP-PROMPT.md
-4. IMPLEMENT-V6-PROMPT.md
-5. V6-QA-PROMPT.md
+
+1. `AGENT-P0-GEOMETRY.md`
+2. `REVIEW-GEOMETRY-PROMPT.md`
+3. `IMPLEMENT-REAL-ROAD-GEOMETRY-PROMPT.md`
+4. `GEOMETRY-ALIGNMENT-QA-PROMPT.md`
+5. `ROUTING-REGRESSION-QA-PROMPT.md`
 6. build + deploy
-7. RELEASE-PROMPT.md
+7. `RELEASE-GEOMETRY-PROMPT.md`

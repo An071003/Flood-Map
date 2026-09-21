@@ -1,0 +1,9 @@
+1. Read AGENT-P0-GEOMETRY.md
+2. Run REVIEW-GEOMETRY-PROMPT.md
+3. Confirm root cause and migration plan before coding
+4. Run IMPLEMENT-REAL-ROAD-GEOMETRY-PROMPT.md
+5. Run GEOMETRY-ALIGNMENT-QA-PROMPT.md
+6. Run ROUTING-REGRESSION-QA-PROMPT.md
+7. Build + deploy
+8. Run RELEASE-GEOMETRY-PROMPT.md
+9. Do not continue V6 feature expansion while P0 geometry fails
