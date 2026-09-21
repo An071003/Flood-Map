@@ -152,13 +152,17 @@ export function evaluateRoute(
       }
     }
 
-    // Stitch coordinates continuously
+    // Stitch coordinates continuously with correct traversal orientation
     const coords = seg.geometry.coordinates;
     if (coords.length > 0) {
       if (allCoordinates.length === 0) {
         allCoordinates.push(...coords);
       } else {
-        allCoordinates.push(...coords.slice(1));
+        const lastPt = allCoordinates[allCoordinates.length - 1];
+        const distToStart = Math.hypot(coords[0][0] - lastPt[0], coords[0][1] - lastPt[1]);
+        const distToEnd = Math.hypot(coords[coords.length - 1][0] - lastPt[0], coords[coords.length - 1][1] - lastPt[1]);
+        const orientedCoords = distToEnd < distToStart ? [...coords].reverse() : coords;
+        allCoordinates.push(...orientedCoords.slice(1));
       }
     }
   }

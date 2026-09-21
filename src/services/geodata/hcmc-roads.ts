@@ -1,4 +1,5 @@
 import { RoadSegment } from '../../types';
+import { getMergedCanonicalGeometry } from './canonical-road-network';
 
 export const MAJOR_HCMC_ROADS: RoadSegment[] = [
   {
@@ -30,16 +31,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.88,
       poorDrainageScore: 0.82,
       historicalFloodScore: 0.92,
+      segmentIds: ['seg-nhc-1', 'seg-nhc-2'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.705, 10.787],
-        [106.712, 10.791],
-        [106.7175, 10.7935],
-        [106.723, 10.795],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['seg-nhc-1', 'seg-nhc-2']),
   },
   {
     id: 'road-quoc-huong-thao-dien',
@@ -69,17 +64,11 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       updatedAt: '14:32',
       lowElevationScore: 0.92,
       poorDrainageScore: 0.85,
-      historicalFloodScore: 0.90,
+      historicalFloodScore: 0.9,
+      segmentIds: ['seg-quoc-huong-1', 'seg-quoc-huong-2'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.732, 10.801],
-        [106.735, 10.806],
-        [106.738, 10.811],
-        [106.741, 10.814],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['seg-quoc-huong-1', 'seg-quoc-huong-2']),
   },
   {
     id: 'road-vo-van-ngan',
@@ -94,7 +83,7 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       riskLevel: 'warning',
       rain1hMm: 25,
       rain3hMm: 42,
-      tideImpactM: 0.20,
+      tideImpactM: 0.2,
       drainageMinutes: 60,
       confidenceBand: 'high',
       confidenceScore: 0.82,
@@ -107,19 +96,13 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       ],
       advice: 'Chú ý dòng nước chảy xiết tại khu vực dốc chợ Thủ Đức. Giữ khoảng cách an toàn.',
       updatedAt: '14:32',
-      lowElevationScore: 0.70,
+      lowElevationScore: 0.7,
       poorDrainageScore: 0.75,
       historicalFloodScore: 0.85,
+      segmentIds: ['canon-vo-van-ngan'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.772, 10.851],
-        [106.764, 10.85],
-        [106.758, 10.849],
-        [106.751, 10.847],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-vo-van-ngan']),
   },
   {
     id: 'road-huynh-tan-phat',
@@ -150,16 +133,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.94,
       poorDrainageScore: 0.88,
       historicalFloodScore: 0.95,
+      segmentIds: ['canon-huynh-tan-phat'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.721, 10.756],
-        [106.725, 10.748],
-        [106.729, 10.74],
-        [106.734, 10.731],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-huynh-tan-phat']),
   },
   {
     id: 'road-tran-xuan-soan',
@@ -188,18 +165,12 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       advice: 'Đường ngập sâu 35–40 cm dọc bờ kè. Tuyệt đối không di chuyển sát mép kênh.',
       updatedAt: '14:32',
       lowElevationScore: 0.96,
-      poorDrainageScore: 0.90,
+      poorDrainageScore: 0.9,
       historicalFloodScore: 0.98,
+      segmentIds: ['seg-tran-xuan-soan', 'seg-txs-htp'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.702, 10.751],
-        [106.711, 10.752],
-        [106.72, 10.753],
-        [106.73, 10.751],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['seg-tran-xuan-soan', 'seg-txs-htp']),
   },
   {
     id: 'road-me-coc',
@@ -230,16 +201,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.98,
       poorDrainageScore: 0.92,
       historicalFloodScore: 0.96,
+      segmentIds: ['canon-me-coc'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.627, 10.724],
-        [106.633, 10.726],
-        [106.639, 10.728],
-        [106.645, 10.727],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-me-coc']),
   },
   {
     id: 'road-phan-thuc-duyen',
@@ -269,16 +234,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.55,
       poorDrainageScore: 0.65,
       historicalFloodScore: 0.65,
+      segmentIds: ['seg-lang-cha-ca-ptd', 'canon-truong-son-airport'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.662, 10.797],
-        [106.659, 10.801],
-        [106.657, 10.806],
-        [106.655, 10.812],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['seg-lang-cha-ca-ptd', 'canon-truong-son-airport']),
   },
   {
     id: 'road-le-duc-tho',
@@ -308,16 +267,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.62,
       poorDrainageScore: 0.78,
       historicalFloodScore: 0.75,
+      segmentIds: ['canon-le-duc-tho'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.671, 10.835],
-        [106.664, 10.842],
-        [106.657, 10.849],
-        [106.65, 10.855],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-le-duc-tho']),
   },
   {
     id: 'road-kinh-duong-vuong',
@@ -347,16 +300,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.75,
       poorDrainageScore: 0.8,
       historicalFloodScore: 0.82,
+      segmentIds: ['canon-kinh-duong-vuong'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.629, 10.749],
-        [106.621, 10.744],
-        [106.613, 10.739],
-        [106.605, 10.733],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-kinh-duong-vuong']),
   },
   {
     id: 'road-calmette-co-giang',
@@ -386,16 +333,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.4,
       poorDrainageScore: 0.35,
       historicalFloodScore: 0.45,
+      segmentIds: ['canon-calmette-co-giang'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.697, 10.765],
-        [106.699, 10.768],
-        [106.701, 10.771],
-        [106.703, 10.774],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-calmette-co-giang']),
   },
   {
     id: 'road-doan-van-bo',
@@ -404,8 +345,8 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       roadId: 'doan-van-bo',
       roadName: 'Đoàn Văn Bơ · Tôn Thất Thuyết',
       district: 'Quận 4',
-      anchorPoint: [106.7055, 10.756],
-      labelPoint: [106.7055, 10.756],
+      anchorPoint: [106.7042, 10.758],
+      labelPoint: [106.7042, 10.758],
       estimatedDepthCm: 16,
       riskLevel: 'warning',
       rain1hMm: 14,
@@ -425,16 +366,10 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.72,
       poorDrainageScore: 0.74,
       historicalFloodScore: 0.78,
+      segmentIds: ['seg-doan-van-bo'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.701, 10.763],
-        [106.704, 10.758],
-        [106.707, 10.754],
-        [106.71, 10.75],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['seg-doan-van-bo']),
   },
   {
     id: 'road-pham-van-chieu',
@@ -464,15 +399,9 @@ export const MAJOR_HCMC_ROADS: RoadSegment[] = [
       lowElevationScore: 0.82,
       poorDrainageScore: 0.85,
       historicalFloodScore: 0.9,
+      segmentIds: ['canon-pham-van-chieu'],
+      geometryQuality: 'verified',
     },
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [106.645, 10.846],
-        [106.653, 10.848],
-        [106.661, 10.849],
-        [106.668, 10.848],
-      ],
-    },
+    geometry: getMergedCanonicalGeometry(['canon-pham-van-chieu']),
   },
 ];

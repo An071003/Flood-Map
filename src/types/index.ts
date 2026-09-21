@@ -38,6 +38,8 @@ export interface RoadSegmentProperties {
   lowElevationScore: number;
   poorDrainageScore: number;
   historicalFloodScore: number;
+  segmentIds?: string[];
+  geometryQuality?: 'verified' | 'approximate';
 }
 
 export interface RoadSegment {
@@ -194,6 +196,8 @@ export interface GraphRoadSegment {
     type: 'LineString';
     coordinates: [number, number][];
   };
+  geometryQuality?: 'verified' | 'approximate';
+  canonicalSegmentId?: string;
   floodForecast: Record<number, SegmentFloodState>;
 }
 

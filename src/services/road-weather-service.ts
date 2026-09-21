@@ -1,4 +1,4 @@
-import { CitySummary, RoadFloodSnapshot, RoadSegment, TimelineStep, WeatherCondition } from '../types';
+import { CitySummary, RoadFloodSnapshot, TimelineStep, WeatherCondition } from '../types';
 import { MAJOR_HCMC_ROADS } from './geodata/hcmc-roads';
 import { calculateRoadSegmentState } from '../domain/road-flood-engine/engine';
 
@@ -24,7 +24,6 @@ export const TIMELINE_STEPS: RoadTimelineHourly[] = [
 
 export class RoadWeatherService {
   private static instance: RoadWeatherService;
-  private roads: RoadSegment[] = MAJOR_HCMC_ROADS;
 
   public static getInstance(): RoadWeatherService {
     if (!RoadWeatherService.instance) {
@@ -56,7 +55,7 @@ export class RoadWeatherService {
       };
     }
 
-    return this.roads.map((road) => {
+    return MAJOR_HCMC_ROADS.map((road) => {
       const baseRain1h = road.properties.rain1hMm;
       const baseRain3h = road.properties.rain3hMm;
 
